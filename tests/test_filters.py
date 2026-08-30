@@ -222,3 +222,41 @@ class TestMetiersVoisins:
         cfg.search.exclude_any = ["qa engineer", "full stack", "devops",
                                   "software engineer", "backend"]
         assert is_excluded(make_offer(title="Data Engineer Senior"), cfg) is None
+
+
+class TestTermesDeRecherche:
+    """`queries` (ce qu'on demande) et `keywords_any` (ce qu'on garde) sont distincts."""
+
+    def test_une_source_herite_des_termes_globaux(self, cfg):
+        from freelance_radar.scrapers.base import BaseScraper
+
+        class Muette(BaseScraper):
+            name = "muette"
+
+            def fetch(self, keywords):
+                return iter(())
+
+        cfg.search.queries = ["data analyst", "power bi"]
+        assert Muette(cfg, client=None, source_cfg={}).queries() == ["data analyst", "power bi"]
+
+    def test_une_source_peut_surcharger(self, cfg):
+        from freelance_radar.scrapers.base import BaseScraper
+
+        class Anglophone(BaseScraper):
+            name = "anglophone"
+
+            def fetch(self, keywords):
+                return iter(())
+
+        cfg.search.queries = ["decisionnel"]
+        source = Anglophone(cfg, client=None, source_cfg={"queries": ["analytics"]})
+        assert source.queries() == ["analytics"]
+
+    def test_un_intitule_bi_passe_le_filtre_de_titre(self, cfg):
+        # Sans le vocabulaire BI dans keywords_any, ces titres tombaient dans la
+        # porte de secours et pouvaient etre rejetes faute de competences data.
+        cfg.search.keywords_any = ["data", "power bi", "decisionnel", "data analyst"]
+        for titre in ["Consultant Power BI senior",
+                      "Chef de projet decisionnel",
+                      "Data Analyst confirme"]:
+            assert matches_keywords(make_offer(title=titre, skills=[]), cfg), titre

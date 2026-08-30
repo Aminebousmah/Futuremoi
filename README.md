@@ -179,7 +179,7 @@ freelance-radar/
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 138 tests, sans accès réseau
+└── tests/                     # 141 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -343,6 +343,21 @@ annonces bavardes.
 `radar show <id>` affiche le détail signal par signal, plus les compétences
 communes et les écarts.
 
+### Termes de recherche vs termes de filtrage
+
+Deux réglages distincts, et les confondre coûte cher :
+
+- **`search.queries`** — ce qu'on **demande** aux moteurs des sources. À calquer
+  sur votre profil : un radar qui n'interroge que `data` rate les annonces
+  intitulées « Consultant Power BI » ou « Chef de projet décisionnel ».
+- **`search.keywords_any`** — ce qu'on **garde** au retour. Volontairement plus
+  large, pour ne pas jeter une bonne annonce au libellé inattendu.
+
+Chaque source hérite de `search.queries` et peut le surcharger quand son
+vocabulaire diffère (Remotive est anglophone, Remote OK filtre par slug interne).
+Plusieurs API combinent les mots-clés par un **ET** : on envoie donc un terme par
+requête, jamais une liste concaténée.
+
 ### Anti-bruit
 
 Le mot « data » apparaît dans quantité d'annonces qui n'ont rien à voir. Trois
@@ -436,7 +451,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 138 tests, aucun accès réseau
+pytest              # 141 tests, aucun accès réseau
 ruff check src tests
 ```
 

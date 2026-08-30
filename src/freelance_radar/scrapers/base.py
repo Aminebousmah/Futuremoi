@@ -100,6 +100,16 @@ class BaseScraper(ABC):
     def _cfg(self, key: str, default: Any = None) -> Any:
         return self.source_cfg.get(key, default)
 
+    def queries(self) -> list[str]:
+        """Termes a envoyer a cette source.
+
+        Par defaut ceux de `search.queries`, qu'une source peut surcharger via
+        sa cle `queries` quand son vocabulaire differe (langue, taxonomie
+        interne). Centraliser evite que chaque scraper invente ses propres
+        termes, ce qui rendait la couverture reelle impossible a raisonner.
+        """
+        return list(self._cfg("queries") or self.cfg.search.queries or ["data"])
+
     # -- acces reseau : passent par le client poli, avec la politique de la source
     def get(self, url: str, **kwargs: Any) -> str:
         kwargs.setdefault("check_robots", self.respects_robots)

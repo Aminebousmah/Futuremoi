@@ -26,7 +26,8 @@ class RemoteOkScraper(BaseScraper):
     respects_robots = False  # API JSON publique et documentee
 
     def fetch(self, keywords: list[str]) -> Iterator[JobOffer]:
-        tags = self._cfg("tags") or ["data", "analyst", "sql", "machine learning"]
+        # Remote OK filtre par tag : ses tags collent aux termes de recherche.
+        tags = self._cfg("tags") or self.queries()
         for tag in tags:
             payload = self.get_json(API_URL, params={"tags": tag})
             if not isinstance(payload, list):

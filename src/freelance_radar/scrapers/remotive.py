@@ -37,20 +37,13 @@ class RemotiveScraper(BaseScraper):
         limit = int(self._cfg("limit", 100))
         # L'API ne gere qu'un terme de recherche : on interroge les mots-cles
         # les plus discriminants un par un, la deduplication se fait en aval.
-        queries = self._cfg("queries") or self._default_queries(keywords)
+        queries = self.queries()
         for query in queries:
             payload = self.get_json(API_URL, params={"search": query, "limit": limit})
             for raw in payload.get("jobs", []):
                 offer = self._parse(raw)
                 if offer:
                     yield offer
-
-    @staticmethod
-    def _default_queries(keywords: list[str]) -> list[str]:
-        """Remotive indexe surtout de l'anglais : on garde 3 requetes utiles."""
-        base = ["data", "analytics", "machine learning"]
-        extra = [k for k in keywords if k.lower() in ("etl", "business intelligence")]
-        return base + extra[:1]
 
     def _parse(self, raw: dict) -> JobOffer | None:
         title = raw.get("title")

@@ -3,6 +3,18 @@
 # ============================================================
 
 search:
+  # Termes ENVOYES aux moteurs de recherche des sources.
+  # A calquer sur votre profil, pas sur le mot "data" seul : un radar qui ne
+  # demande que "data" rate les annonces intitulees "Consultant Power BI" ou
+  # "Chef de projet decisionnel", qui sont pourtant le coeur de cible.
+  # Une requete par terme (plusieurs API combinent les mots-cles par un ET).
+  queries:
+    - "data analyst"
+    - "business intelligence"
+    - "power bi"
+    - "data engineer"
+    - decisionnel
+    - dataiku
   # Mots-cles principaux : une offre doit matcher au moins un "must"
   keywords_any:
     - data
@@ -18,6 +30,14 @@ search:
     - dataviz
     - machine learning
     - ml
+    # Vocabulaire BI / analyse, celui des intitules francais
+    - "data analyst"
+    - "power bi"
+    - decisionnel
+    - reporting
+    - dataiku
+    - qlik
+    - "tableau de bord"
   # Termes qui disqualifient l'offre (bruit frequent sur "data")
   exclude_any:
     - stage
@@ -105,10 +125,13 @@ sources:
     enabled: true
     kind: api
     limit: 100
+    # Catalogue anglophone : les termes francais n'y rendent rien.
+    queries: ["data analyst", "business intelligence", "data engineer", "analytics"]
   remoteok:
     enabled: true
     kind: api
-    tags: [data, analyst, sql, "machine learning"]
+    # Remote OK filtre par tag interne : ce sont des slugs, pas du texte libre.
+    tags: [data, analyst, sql, "business intelligence"]
   freework:
     enabled: true
     kind: html
@@ -158,7 +181,8 @@ sources:
     kind: api
     # Un terme par requete : l'API combine les mots-cles par un ET.
     # "donnees" rend presque le double de "data" — le catalogue est en francais.
-    queries: [data, donnees, decisionnel]
+    queries: ["data analyst", "business intelligence", "power bi",
+              "donnees", "decisionnel", "data"]
     # Code du referentiel France Travail. LIB = profession liberale, le seul
     # code qui corresponde vraiment a du freelance ; MIS est de l'interim.
     # Mettre "" pour tout voir, ou "LIB,CDD" pour elargir.

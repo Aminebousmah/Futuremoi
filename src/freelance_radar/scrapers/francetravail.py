@@ -122,7 +122,7 @@ class FranceTravailScraper(BaseScraper):
         # `motsCles` combine les termes par un ET, pas par un OU : envoyer
         # "data,donnees" ne rend rien du tout. On interroge donc un terme a la
         # fois et la deduplication du pipeline fusionne les resultats.
-        requetes = self._cfg("queries") or ["data"]
+        requetes = self.queries()
         base_params: dict[str, object] = {
             "publieeDepuis": snap_publiee_depuis(self.cfg.filters.max_age_days),
         }

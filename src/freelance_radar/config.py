@@ -25,6 +25,12 @@ def project_root() -> Path:
 #  Schemas de configuration
 # --------------------------------------------------------------------------- #
 class SearchConfig(BaseModel):
+    # `queries` = ce qu'on DEMANDE aux sources (leur moteur de recherche).
+    # `keywords_any` = ce qu'on GARDE une fois les resultats revenus.
+    # Les deux sont distincts : on interroge avec le vocabulaire du metier vise,
+    # on filtre avec un panier plus large pour ne pas jeter une bonne annonce
+    # au libelle inattendu.
+    queries: list[str] = Field(default_factory=lambda: ["data"])
     keywords_any: list[str] = Field(default_factory=lambda: ["data"])
     exclude_any: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=lambda: ["fr", "en"])

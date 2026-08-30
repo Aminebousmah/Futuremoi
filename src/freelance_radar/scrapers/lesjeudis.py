@@ -38,7 +38,7 @@ class LesJeudisScraper(BaseScraper):
     def fetch(self, keywords: list[str]) -> Iterator[JobOffer]:
         max_pages = int(self._cfg("max_pages", 2))
         max_offers = int(self._cfg("max_offers", 40))
-        requetes = self._cfg("queries") or ["data"]
+        requetes = self.queries()
 
         vues: set[str] = set()
         collectees = 0

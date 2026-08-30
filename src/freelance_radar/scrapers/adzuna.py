@@ -32,29 +32,31 @@ class AdzunaScraper(BaseScraper):
         country = str(self._cfg("country", "fr"))
         max_pages = int(self._cfg("max_pages", 3))
         per_page = int(self._cfg("results_per_page", 50))
-        query = " ".join(self._cfg("queries") or ["data"])
+        # Adzuna traite `what` comme un ET : on interroge terme par terme.
+        requetes = self.queries()
 
-        for page in range(1, max_pages + 1):
-            payload = self.get_json(
-                API_TEMPLATE.format(country=country, page=page),
-                params={
-                    "app_id": env("ADZUNA_APP_ID"),
-                    "app_key": env("ADZUNA_APP_KEY"),
-                    "what": query,
-                    "results_per_page": per_page,
-                    "content-type": "application/json",
-                    # Adzuna n'a pas de filtre "freelance" : on cible le contrat court
-                    "contract_type": "contract",
-                    "max_days_old": self.cfg.filters.max_age_days or 30,
-                },
-            )
-            results = payload.get("results", [])
-            if not results:
-                break
-            for raw in results:
-                offer = self._parse(raw)
-                if offer:
-                    yield offer
+        for requete in requetes:
+            for page in range(1, max_pages + 1):
+                payload = self.get_json(
+                    API_TEMPLATE.format(country=country, page=page),
+                    params={
+                        "app_id": env("ADZUNA_APP_ID"),
+                        "app_key": env("ADZUNA_APP_KEY"),
+                        "what": requete,
+                        "results_per_page": per_page,
+                        "content-type": "application/json",
+                        # Adzuna n'a pas de filtre freelance : on cible le contrat court
+                        "contract_type": "contract",
+                        "max_days_old": self.cfg.filters.max_age_days or 30,
+                    },
+                )
+                results = payload.get("results", [])
+                if not results:
+                    break
+                for raw in results:
+                    offer = self._parse(raw)
+                    if offer:
+                        yield offer
 
     def _parse(self, raw: dict) -> JobOffer | None:
         title = raw.get("title")

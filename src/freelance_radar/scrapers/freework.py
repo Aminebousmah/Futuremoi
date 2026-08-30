@@ -40,7 +40,7 @@ class FreeWorkScraper(BaseScraper):
     def fetch(self, keywords: list[str]) -> Iterator[JobOffer]:
         max_pages = int(self._cfg("max_pages", 2))
         max_offers = int(self._cfg("max_offers", 60))
-        queries = self._cfg("queries") or self._default_queries(keywords)
+        queries = self.queries()
 
         seen: set[str] = set()
         collected = 0
@@ -59,13 +59,6 @@ class FreeWorkScraper(BaseScraper):
                         yield offer
                 if collected >= max_offers:
                     return
-
-    @staticmethod
-    def _default_queries(keywords: list[str]) -> list[str]:
-        """Free-Work indexe du francais : on privilegie les termes metier larges."""
-        preferred = ["data", "business intelligence", "analytics"]
-        return [k for k in preferred if any(k in kw.lower() or kw.lower() in k
-                                            for kw in keywords)] or ["data"]
 
     def _listing_links(self, query: str, page: int) -> list[str]:
         params = {
