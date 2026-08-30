@@ -193,7 +193,7 @@ freelance-radar/
 ├── docs/cv-canva.md           # adapter le CV Canva : mode d'emploi et limites
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 169 tests, sans accès réseau
+└── tests/                     # 170 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -425,6 +425,7 @@ Lancez `radar scrape --explain` pour voir le décompte des rejets par motif.
 ├── email.md       # version courte pour un envoi par mail (objet inclus)
 ├── offre.md       # l'annonce complète, pour la relecture hors ligne
 ├── offre.json     # les données brutes de l'offre
+├── cv-adapte.md   # profil réécrit + ordre des compétences pour cette offre
 └── checklist.md   # à vérifier avant envoi + points à préparer en entretien
 ```
 
@@ -474,7 +475,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 169 tests, aucun accès réseau
+pytest              # 170 tests, aucun accès réseau
 ruff check src tests
 ```
 

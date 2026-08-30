@@ -82,6 +82,14 @@ class TestDocuments:
         r = client.get(f"/document/{offre_en_base.id}/lettre.md")
         assert r.status_code == 200 and "Bonjour" in r.text
 
+    def test_cv_adapte_consultable(self, client, offre_en_base):
+        # Le CV adapte est l'etape manuelle du parcours : il doit etre a portee
+        # de clic depuis l'offre, pas seulement sur le disque.
+        client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
+        r = client.get(f"/document/{offre_en_base.id}/cv-adapte.md")
+        assert r.status_code == 200
+        assert "Ordre des rubriques" in r.text
+
     def test_nom_hors_liste_refuse(self, client, offre_en_base):
         client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
         assert client.get(f"/document/{offre_en_base.id}/offre.json").status_code == 404

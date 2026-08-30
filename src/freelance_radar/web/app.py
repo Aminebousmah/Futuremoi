@@ -238,7 +238,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         est verifie comme etant sous le dossier des candidatures : sans cela,
         un `nom` du type `../../.env` sortirait de l'arborescence.
         """
-        autorises = {"lettre.md", "email.md", "checklist.md", "offre.md"}
+        autorises = {"lettre.md", "email.md", "checklist.md", "offre.md", "cv-adapte.md"}
         if nom not in autorises:
             raise HTTPException(status_code=404, detail="Document inconnu")
 

@@ -45,11 +45,18 @@ Le paragraphe de profil subit le même sort — il ressort intégralement en gra
 Un CV dont toute la section compétences passe en gras n'est pas envoyable. Les
 modifications ont donc été annulées, jamais enregistrées.
 
-### Ce qui marche aujourd'hui
+### La marche à suivre
 
-Ouvrir `cv-adapte.md`, dupliquer le CV dans Canva, et coller les deux blocs à la
-main. Le collage dans les zones existantes conserve leur mise en forme. Compter
-une minute par candidature — le travail de réflexion, lui, est déjà fait.
+1. Ouvrez l'offre dans l'interface (`.adar.bat web`) et cliquez **CV adapté**.
+2. Dans Canva, dupliquez votre CV (clic droit → Faire une copie).
+3. Collez le **paragraphe de profil** dans le bloc PROFIL.
+4. Collez les **rubriques de compétences** dans le bloc COMPÉTENCES, dans
+   l'ordre indiqué.
+5. Exportez en PDF.
+
+Coller dans les zones existantes conserve leur mise en forme — gras des
+intitulés compris. Comptez une minute : le travail de réflexion, lui, est déjà
+fait par l'outil.
 
 ### Les champs d'autofill : posés, mais inexploitables sans forfait payant
 

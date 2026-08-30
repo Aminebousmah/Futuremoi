@@ -376,6 +376,8 @@ Rends le JSON demande, en francais."""
                else " (offre : non précisé)"),
             f"- [ ] Disponibilité exacte : **{ctx['availability']}**",
             f"- [ ] CV joint — `{cv}` : {cv_state}",
+            "- [ ] CV adapté : dupliquer le CV Canva, coller les deux blocs de "
+            "`cv-adapte.md` (profil + ordre des compétences), exporter en PDF",
             "- [ ] Relecture orthographe et longueur",
             "- [ ] Aucune affirmation non vérifiable dans la lettre",
             "",
