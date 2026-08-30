@@ -1,0 +1,109 @@
+"""Interface web : routes, actions et garde-fous (aucun serveur lance)."""
+
+from __future__ import annotations
+
+import pytest
+from conftest import make_offer
+from fastapi.testclient import TestClient
+
+from freelance_radar.models import ApplicationStatus
+from freelance_radar.pipeline.score import score_offer
+from freelance_radar.storage import Database
+from freelance_radar.web.app import create_app
+
+
+@pytest.fixture
+def offre_en_base(cfg, profile):
+    db = Database(cfg.db_path)
+    offre = score_offer(make_offer(), profile, cfg)
+    db.upsert_offers([offre])
+    db.close()
+    return offre
+
+
+@pytest.fixture
+def client(cfg, profile):
+    return TestClient(create_app(cfg, profile))
+
+
+class TestConsultation:
+    def test_accueil(self, client, offre_en_base):
+        r = client.get("/")
+        assert r.status_code == 200
+        assert offre_en_base.title in r.text
+
+    def test_filtre_par_score(self, client, offre_en_base):
+        assert offre_en_base.title not in client.get("/?score_min=99").text
+        assert offre_en_base.title in client.get("/?score_min=0").text
+
+    def test_detail_offre(self, client, offre_en_base):
+        r = client.get(f"/offre/{offre_en_base.id}")
+        assert r.status_code == 200
+        assert offre_en_base.company in r.text
+        assert "Detail du score" in r.text or "score" in r.text.lower()
+
+    def test_offre_inconnue(self, client):
+        assert client.get("/offre/inexistante").status_code == 404
+
+    def test_pipeline_vide(self, client, offre_en_base):
+        r = client.get("/candidatures")
+        assert r.status_code == 200 and "Aucune candidature" in r.text
+
+
+class TestActions:
+    def test_changer_statut(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/statut",
+                        data={"statut": "sent"}, follow_redirects=False)
+        assert r.status_code == 303
+        db = Database(cfg.db_path)
+        assert db.get_offer(offre_en_base.id).status == ApplicationStatus.SENT
+        db.close()
+
+    def test_statut_invalide_refuse(self, client, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/statut", data={"statut": "nimporte"})
+        assert r.status_code == 400
+
+    def test_generer_un_brouillon(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={"moteur": "template"}, follow_redirects=False)
+        assert r.status_code == 303
+        db = Database(cfg.db_path)
+        candidature = db.get_application(offre_en_base.id)
+        db.close()
+        assert candidature is not None
+        # Garde-fou : generer ne doit jamais marquer une candidature envoyee.
+        assert candidature.status == ApplicationStatus.DRAFTED
+        assert candidature.sent_at is None
+
+
+class TestDocuments:
+    def test_lecture_d_un_document(self, client, offre_en_base):
+        client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
+        r = client.get(f"/document/{offre_en_base.id}/lettre.md")
+        assert r.status_code == 200 and "Bonjour" in r.text
+
+    def test_nom_hors_liste_refuse(self, client, offre_en_base):
+        client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
+        assert client.get(f"/document/{offre_en_base.id}/offre.json").status_code == 404
+
+    @pytest.mark.parametrize("chemin", [
+        "../../../.env",
+        "..%2f..%2fconfig%2fprofile.yaml",
+        "lettre.md/../../../.env",
+    ])
+    def test_traversee_de_repertoire_bloquee(self, client, offre_en_base, chemin):
+        # Sans validation, un nom construit pourrait sortir du dossier des
+        # candidatures et lire .env ou le profil.
+        client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
+        r = client.get(f"/document/{offre_en_base.id}/{chemin}")
+        assert r.status_code == 404
+        assert "ANTHROPIC" not in r.text and "daily_rate_target" not in r.text
+
+    def test_document_sans_candidature(self, client, offre_en_base):
+        assert client.get(f"/document/{offre_en_base.id}/lettre.md").status_code == 404
+
+
+class TestCampagne:
+    def test_etat_initial(self, client):
+        etat = client.get("/campagne/etat").json()
+        assert etat["running"] is False and etat["result"] == {}

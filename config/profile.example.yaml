@@ -1,0 +1,91 @@
+# ============================================================
+#  Profil freelance — copier en config/profile.yaml et adapter
+#  (config/profile.yaml est gitignore : il contient vos donnees perso)
+# ============================================================
+
+identity:
+  full_name: "Prenom Nom"
+  title: "Data Engineer / Analytics Engineer freelance"
+  email: "vous@example.com"
+  phone: "+33 6 00 00 00 00"
+  city: "Paris"
+  linkedin: "https://www.linkedin.com/in/votre-profil"
+  github: "https://github.com/votre-compte"
+  website: ""
+  siret: ""
+
+positioning:
+  # 2-3 phrases : la base du paragraphe d'accroche des lettres
+  pitch: >
+    8 ans d'experience sur des plateformes data en production : ingestion,
+    modelisation et industrialisation de pipelines analytiques. J'interviens
+    de la conception a la mise en production, avec un focus sur la fiabilite
+    et le time-to-insight des equipes metier.
+  seniority: senior          # junior | confirme | senior | expert
+  years_experience: 8
+
+skills:
+  # Ces listes alimentent le score de matching ET l'extraction de competences
+  expert:
+    - Python
+    - SQL
+    - dbt
+    - Snowflake
+    - Airflow
+  advanced:
+    - Spark
+    - BigQuery
+    - Databricks
+    - Kafka
+    - Terraform
+    - Power BI
+  familiar:
+    - Kubernetes
+    - Docker
+    - AWS
+    - GCP
+    - Looker
+    - Tableau
+  soft:
+    - cadrage besoin metier
+    - animation d'atelier
+    - mentorat
+
+constraints:
+  daily_rate_target: 650      # TJM vise (EUR)
+  daily_rate_floor: 550       # TJM plancher : sous ce seuil, score fortement penalise
+  remote: hybrid              # onsite | hybrid | full_remote
+  max_onsite_days_per_week: 2
+  available_from: "2026-09-15"
+  preferred_duration_months: 6
+  mobility:
+    - Paris
+    - Ile-de-France
+    - Remote France
+
+references:
+  # Missions marquantes reutilisees comme preuves dans les lettres
+  - client: "Retailer e-commerce (500+ salaries)"
+    role: "Data Engineer"
+    period: "2024-2025"
+    stack: [dbt, Snowflake, Airflow, Python]
+    achievement: >
+      Refonte du datawarehouse : 300 modeles dbt, temps de rafraichissement
+      divise par 4 et couverture de tests passee de 20% a 85%.
+  - client: "Scale-up fintech"
+    role: "Analytics Engineer"
+    period: "2023-2024"
+    stack: [BigQuery, dbt, Looker]
+    achievement: >
+      Mise en place du socle analytics self-service : 40 utilisateurs metier
+      autonomes, -60% de tickets ad hoc pour l'equipe data.
+
+documents:
+  # Chemins relatifs a la racine du projet, utilises par `radar apply`
+  cv_pdf: "assets/CV.pdf"
+  portfolio_pdf: ""
+
+preferences:
+  # Secteurs/contextes a mettre en avant ou a eviter dans le scoring
+  favorite_sectors: [retail, fintech, saas, energie]
+  avoid_sectors: [defense, tabac]

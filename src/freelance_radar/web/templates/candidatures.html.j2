@@ -1,0 +1,47 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "candidatures" %}
+{% block titre %}Candidatures — freelance-radar{% endblock %}
+
+{% block contenu %}
+<h1>Candidatures</h1>
+<p class="sub">
+  {{ lignes|length }} dossier(s). L'envoi reste manuel : mettez le statut à jour
+  une fois la candidature partie.
+</p>
+
+<div class="stats">
+  {% for statut, n in par_statut.items() %}
+  <div class="stat"><b>{{ n }}</b><span>{{ statut|statut }}</span></div>
+  {% endfor %}
+</div>
+
+<div class="panneau scroll">
+  <table>
+    <thead>
+      <tr><th>Score</th><th>Mission</th><th>Entreprise</th><th>TJM proposé</th>
+          <th>Statut</th><th>Créée le</th><th>Documents</th></tr>
+    </thead>
+    <tbody>
+    {% for offre, cand in lignes %}
+      <tr>
+        <td class="score {{ 'haut' if offre.score >= seuil else 'bas' }}">{{ "%.0f"|format(offre.score) }}</td>
+        <td><a href="/offre/{{ offre.id }}">{{ offre.title }}</a></td>
+        <td>{{ offre.company or "—" }}</td>
+        <td>{{ (cand.proposed_rate ~ " €") if cand.proposed_rate else "—" }}</td>
+        <td><span class="badge">{{ offre.status.value|statut }}</span></td>
+        <td>{{ cand.created_at.strftime("%d/%m") }}</td>
+        <td>
+          <a href="/document/{{ offre.id }}/lettre.md">lettre</a> ·
+          <a href="/document/{{ offre.id }}/email.md">email</a> ·
+          <a href="/document/{{ offre.id }}/checklist.md">checklist</a>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="bas">
+        Aucune candidature. Ouvrez une offre et générez un brouillon.
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

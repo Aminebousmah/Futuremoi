@@ -1,0 +1,98 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "offres" %}
+{% block titre %}{{ offre.title }} — freelance-radar{% endblock %}
+
+{% block contenu %}
+<h1>{{ offre.title }}</h1>
+<p class="sub">
+  <span class="score {{ 'haut' if offre.score >= seuil else 'bas' }}">{{ "%.0f"|format(offre.score) }}/100</span>
+  · {{ offre.company or "entreprise non précisée" }}
+  · <a href="{{ offre.url }}" target="_blank" rel="noopener">voir l'annonce d'origine</a>
+</p>
+
+<div class="panneau">
+  <table>
+    <tr><th>Lieu</th><td>{{ offre.location or "—" }} ({{ offre.remote.value }})</td></tr>
+    <tr><th>Contrat</th><td>{{ offre.contract.value }}</td></tr>
+    <tr><th>TJM affiché</th><td>{{ (offre.daily_rate ~ " € HT/j") if offre.daily_rate else "non précisé" }}</td></tr>
+    <tr><th>Durée</th><td>{{ (offre.duration_months ~ " mois") if offre.duration_months else "non précisée" }}</td></tr>
+    <tr><th>Publiée</th><td>{{ offre.published_at.strftime("%d/%m/%Y") if offre.published_at else "inconnu" }}</td></tr>
+    <tr><th>Source</th><td>{{ offre.source }}</td></tr>
+    <tr><th>Compétences</th><td>
+      {% for s in offre.skills %}<span class="chip">{{ s }}</span>{% else %}—{% endfor %}
+    </td></tr>
+  </table>
+</div>
+
+{% if offre.score_detail %}
+<div class="panneau">
+  <strong>Détail du score</strong>
+  <table style="margin-top:.6rem">
+    <thead><tr><th>Signal</th><th>Valeur</th><th>Poids</th></tr></thead>
+    <tbody>
+    {% for signal, poids_signal in poids.items() %}
+      {% set v = offre.score_detail.get(signal) %}
+      {% if v is number %}
+      <tr><td>{{ signal }}</td><td>{{ "%.2f"|format(v) }}</td><td>{{ "%.0f"|format(poids_signal) }}</td></tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% set communes = offre.score_detail.get("_matched_skills") %}
+  {% set ecarts = offre.score_detail.get("_missing_skills") %}
+  {% if communes %}<p style="margin:.7rem 0 0"><strong class="haut">Recoupement :</strong>
+    {% for s in communes %}<span class="chip">{{ s }}</span>{% endfor %}</p>{% endif %}
+  {% if ecarts %}<p style="margin:.4rem 0 0"><strong>Écarts :</strong>
+    {% for s in ecarts %}<span class="chip">{{ s }}</span>{% endfor %}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="panneau">
+  <strong>Candidature</strong>
+  {% if candidature %}
+    <p class="sub" style="margin:.5rem 0">
+      Brouillon généré le {{ candidature.created_at.strftime("%d/%m/%Y à %H:%M") }}
+      ({{ candidature.generator }}) · TJM proposé
+      <strong>{{ candidature.proposed_rate }} € HT/j</strong>
+    </p>
+    <p>
+      <a class="bouton" href="/document/{{ offre.id }}/lettre.md">Lettre</a>
+      <a class="bouton" href="/document/{{ offre.id }}/email.md">Email</a>
+      <a class="bouton" href="/document/{{ offre.id }}/checklist.md">Checklist</a>
+    </p>
+    <p class="bas" style="font-size:.8rem">Dossier : <code>{{ candidature.file_path }}</code></p>
+  {% else %}
+    <p class="sub" style="margin:.5rem 0">Aucun brouillon pour cette offre.</p>
+  {% endif %}
+
+  <form class="enligne" method="post" action="/offre/{{ offre.id }}/candidature">
+    <select name="moteur">
+      <option value="auto">Moteur automatique (LLM si disponible)</option>
+      <option value="template">Templates uniquement</option>
+    </select>
+    <button type="submit" class="primaire">
+      {{ "Regénérer le brouillon" if candidature else "Générer un brouillon" }}
+    </button>
+  </form>
+  <p class="bas" style="font-size:.8rem;margin:.6rem 0 0">
+    Génère des fichiers à relire. Rien n'est envoyé.
+  </p>
+</div>
+
+<div class="panneau">
+  <form class="enligne" method="post" action="/offre/{{ offre.id }}/statut">
+    <strong style="margin-right:.3rem">Statut</strong>
+    <select name="statut">
+      {% for s in statuts %}
+      <option value="{{ s }}" {{ 'selected' if offre.status.value == s }}>{{ s|statut }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Mettre à jour</button>
+  </form>
+</div>
+
+<div class="panneau">
+  <strong>Annonce</strong>
+  <pre>{{ offre.description or "(description vide)" }}</pre>
+</div>
+{% endblock %}

@@ -1,0 +1,230 @@
+"""Application FastAPI : consultation, notation et candidatures depuis le navigateur."""
+
+from __future__ import annotations
+
+import logging
+import threading
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+
+from ..apply import ApplicationGenerator
+from ..config import Config, Profile, load_config, load_profile
+from ..models import ApplicationStatus
+from ..storage import Database
+from .state import CampaignState
+
+log = logging.getLogger(__name__)
+
+TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+
+STATUS_LABELS = {
+    "new": "a traiter",
+    "drafted": "brouillon pret",
+    "sent": "envoyee",
+    "replied": "reponse recue",
+    "interview": "entretien",
+    "won": "gagnee",
+    "rejected": "refusee",
+    "archived": "archivee",
+}
+
+
+def create_app(cfg: Config | None = None, profile: Profile | None = None) -> FastAPI:
+    cfg = cfg or load_config()
+    profile = profile or load_profile()
+
+    app = FastAPI(title="freelance-radar", docs_url=None, redoc_url=None)
+    templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+    templates.env.filters["statut"] = lambda s: STATUS_LABELS.get(s, s)
+
+    campaign = CampaignState()
+    app.state.cfg = cfg
+    app.state.profile = profile
+    app.state.campaign = campaign
+
+    def db() -> Database:
+        """Une connexion par requete.
+
+        sqlite3 refuse le partage entre threads, et FastAPI execute les routes
+        synchrones dans un pool. Ouvrir la base est peu couteux : c'est plus sur
+        qu'un `check_same_thread=False` qui masquerait de vraies races.
+        """
+        return Database(cfg.db_path)
+
+    def page(request: Request, name: str, **ctx: Any) -> HTMLResponse:
+        base = {
+            "request": request,
+            "profil": profile,
+            "seuil": cfg.scoring.apply_threshold,
+            "campagne": campaign.snapshot(),
+        }
+        return templates.TemplateResponse(request, name, {**base, **ctx})
+
+    # ------------------------------------------------------------------ #
+    #  Consultation
+    # ------------------------------------------------------------------ #
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request, score_min: float = 0, statut: str = "",
+              source: str = "", limite: int = 100) -> HTMLResponse:
+        base = db()
+        try:
+            offres = base.list_offers(
+                min_score=score_min, status=statut or None,
+                source=source or None, limit=limite,
+            )
+            ctx = {
+                "offres": offres,
+                "par_statut": base.counts_by_status(),
+                "par_source": base.counts_by_source(),
+                "filtres": {"score_min": score_min, "statut": statut,
+                            "source": source, "limite": limite},
+                "statuts": [s.value for s in ApplicationStatus],
+            }
+        finally:
+            base.close()
+        return page(request, "index.html.j2", **ctx)
+
+    @app.get("/offre/{offer_id}", response_class=HTMLResponse)
+    def detail(request: Request, offer_id: str) -> HTMLResponse:
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+            candidature = base.get_application(offre.id)
+        finally:
+            base.close()
+        return page(request, "offre.html.j2", offre=offre, candidature=candidature,
+                    poids=cfg.scoring.weights,
+                    statuts=[s.value for s in ApplicationStatus])
+
+    @app.get("/candidatures", response_class=HTMLResponse)
+    def pipeline(request: Request) -> HTMLResponse:
+        base = db()
+        try:
+            lignes = base.pipeline()
+            par_statut = base.counts_by_status()
+        finally:
+            base.close()
+        return page(request, "candidatures.html.j2", lignes=lignes, par_statut=par_statut)
+
+    # ------------------------------------------------------------------ #
+    #  Actions
+    # ------------------------------------------------------------------ #
+    @app.post("/offre/{offer_id}/statut")
+    def changer_statut(offer_id: str, statut: str = Form(...)) -> RedirectResponse:
+        try:
+            nouveau = ApplicationStatus(statut)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Statut inconnu") from exc
+        base = db()
+        try:
+            if not base.set_status(offer_id, nouveau):
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        return RedirectResponse(f"/offre/{offer_id}", status_code=303)
+
+    @app.post("/offre/{offer_id}/candidature")
+    def generer_candidature(offer_id: str, moteur: str = Form("auto")) -> RedirectResponse:
+        """Genere un BROUILLON. Aucun envoi : c'est la regle du projet."""
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+            generateur = ApplicationGenerator(cfg, profile)
+            candidature = generateur.generate(offre, force_template=(moteur == "template"))
+            base.save_application(candidature)
+        finally:
+            base.close()
+        return RedirectResponse(f"/offre/{offer_id}", status_code=303)
+
+    # ------------------------------------------------------------------ #
+    #  Campagne de veille
+    # ------------------------------------------------------------------ #
+    def _run_campaign() -> None:
+        from ..pipeline.runner import run_campaign
+
+        base = Database(cfg.db_path)
+        try:
+            resultat = run_campaign(cfg, profile, base, progress=campaign.progress)
+            campaign.finish({
+                "collectees": resultat.fetched,
+                "retenues": resultat.kept,
+                "nouvelles": resultat.new_offers,
+                "par_source": resultat.per_source,
+                "rejets": resultat.rejected_summary,
+            })
+        except Exception as exc:  # une campagne qui echoue ne doit pas tuer le serveur
+            log.exception("Campagne en echec")
+            campaign.finish(error=str(exc))
+        finally:
+            base.close()
+
+    @app.post("/campagne")
+    def lancer_campagne() -> RedirectResponse:
+        if campaign.start():
+            threading.Thread(target=_run_campaign, daemon=True).start()
+        return RedirectResponse("/", status_code=303)
+
+    @app.get("/campagne/etat")
+    def etat_campagne() -> JSONResponse:
+        """Sondee par la page pendant qu'une campagne tourne."""
+        return JSONResponse(campaign.snapshot())
+
+    # ------------------------------------------------------------------ #
+    #  Documents generes
+    # ------------------------------------------------------------------ #
+    @app.get("/document/{offer_id}/{nom}", response_class=HTMLResponse)
+    def document(request: Request, offer_id: str, nom: str) -> HTMLResponse:
+        """Affiche un fichier du dossier de candidature.
+
+        Le nom demande est valide contre une liste fermee, et le chemin resolu
+        est verifie comme etant sous le dossier des candidatures : sans cela,
+        un `nom` du type `../../.env` sortirait de l'arborescence.
+        """
+        autorises = {"lettre.md", "email.md", "checklist.md", "offre.md"}
+        if nom not in autorises:
+            raise HTTPException(status_code=404, detail="Document inconnu")
+
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            candidature = base.get_application(offre.id) if offre else None
+        finally:
+            base.close()
+        if offre is None or candidature is None or not candidature.file_path:
+            raise HTTPException(status_code=404, detail="Candidature introuvable")
+
+        racine = cfg.applications_path.resolve()
+        chemin = (Path(candidature.file_path) / nom).resolve()
+        if not chemin.is_relative_to(racine) or not chemin.exists():
+            raise HTTPException(status_code=404, detail="Document introuvable")
+
+        return page(request, "document.html.j2", offre=offre, nom=nom,
+                    contenu=chemin.read_text(encoding="utf-8"),
+                    dossier=str(chemin.parent))
+
+    return app
+
+
+def run(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
+    """Demarre le serveur.
+
+    Ecoute par defaut sur 127.0.0.1 : l'interface expose votre profil, vos
+    candidatures et vos coordonnees. Exposer ce serveur au reseau doit rester
+    un geste volontaire, jamais un defaut.
+    """
+    import uvicorn
+
+    if reload:
+        # Le rechargement a chaud exige un chemin d'import, pas une instance.
+        uvicorn.run("freelance_radar.web.app:create_app", host=host, port=port,
+                    reload=True, factory=True, log_level="warning")
+    else:
+        uvicorn.run(create_app(), host=host, port=port, log_level="warning")

@@ -1,0 +1,23 @@
+Bonjour,
+
+{{ hook }}
+
+{% if matched_skills %}
+En résumé, sur votre stack ({{ matched_skills[:5] | join(", ") }}) :
+
+{% for ref in references[:2] %}
+- {{ ref.client }} — {{ ref.achievement | trim }}
+
+{% endfor %}
+{% endif %}
+Je suis disponible {{ availability }}, sur un TJM de {{ proposed_rate }} € HT/jour{{ (" en " ~ remote_label) if offer.remote.value != "unknown" else "" }}.
+Mon CV est en pièce jointe ; je peux vous transmettre des références détaillées sur demande.
+
+Seriez-vous disponible pour un échange de 20 minutes cette semaine ?
+
+Bien cordialement,
+
+{{ profile.identity.full_name }}
+{{ profile.identity.title }}
+{{ profile.identity.email }}{{ " · " ~ profile.identity.phone if profile.identity.phone else "" }}
+{{ profile.identity.linkedin if profile.identity.linkedin else "" }}

@@ -1,0 +1,49 @@
+{#- Note : l'environnement Jinja active trim_blocks, qui supprime le saut de
+    ligne suivant une balise de bloc. Les conditions sont donc ecrites en
+    expressions inline ({{ ... if ... }}) partout ou un saut doit survivre. -#}
+# Candidature — {{ offer.title }}
+
+**{{ profile.identity.full_name }}** · {{ profile.identity.title }}
+{{ profile.identity.email }}{{ " · " ~ profile.identity.phone if profile.identity.phone else "" }}{{ " · " ~ profile.identity.linkedin if profile.identity.linkedin else "" }}
+
+---
+
+- **Mission :** {{ offer.title }}{{ " — " ~ offer.company if offer.company else "" }}
+- **Source :** {{ offer.source }} — [{{ offer.url }}]({{ offer.url }})
+- **Lieu :** {{ offer.location or "non précisé" }} · {{ remote_label }}
+- **TJM affiché :** {{ (offer.daily_rate ~ " € HT/j") if offer.daily_rate else "non précisé" }}
+- **TJM proposé :** {{ proposed_rate }} € HT/j
+- **Disponibilité :** {{ availability }}
+
+---
+
+Bonjour,
+
+{{ hook }}
+
+{% if matched_skills %}
+Votre besoin porte sur {{ matched_skills[:4] | join(", ") }} : c'est le cœur de mon quotidien.
+
+{% endif %}
+{% for ref in references[:2] %}
+- **{{ ref.client }}** ({{ ref.period }} · {{ ref.stack | join(", ") }}) — {{ ref.achievement | trim }}
+
+{% endfor %}
+{{ closing }}
+
+Je reste disponible pour un échange cette semaine afin de cadrer le besoin et de valider l'adéquation technique.
+
+Bien cordialement,
+{{ profile.identity.full_name }}
+
+---
+
+<!-- Aide à la relecture — à supprimer avant envoi -->
+
+> **Score de matching :** {{ "%.0f" | format(offer.score) }}/100
+{% if gaps %}
+>
+> **À anticiper en entretien :** {{ gaps | join(", ") }}
+{% endif %}
+>
+> **Avant envoi :** intitulé exact, nom de l'interlocuteur, TJM proposé, date de disponibilité.

@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.env
+data/*.db
+data/cache/
+output/applications/*
+!output/applications/.gitkeep
+config/profile.yaml
+data/logs/
+
+# Exports : ils contiennent des annonces appartenant aux sites sources.
+# Les republier serait une rediffusion de leur contenu.
+output/*.html
+output/*.csv
+output/*.json
+
+# Preview local
+.claude/launch.json

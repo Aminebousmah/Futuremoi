@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titre %}freelance-radar{% endblock %}</title>
+<style>
+  :root {
+    --bg:#fbfbfa; --panel:#fff; --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2f6f4f; --accent-ink:#fff; --warn:#b45309; --chip:#f3f4f6; --danger:#b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181c; --panel:#1e2126; --ink:#e8eaed; --muted:#9aa1ab; --line:#2d3138;
+            --accent:#6bbf8f; --accent-ink:#10231a; --warn:#e0a45e; --chip:#272b31;
+            --danger:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  a { color:var(--accent); }
+  .wrap { max-width:1150px; margin:0 auto; padding:0 1.25rem 3rem; }
+  header { border-bottom:1px solid var(--line); background:var(--panel);
+           position:sticky; top:0; z-index:10; }
+  header .wrap { display:flex; align-items:center; gap:1.5rem; padding:.9rem 1.25rem; }
+  .marque { font-weight:700; letter-spacing:-.01em; }
+  nav { display:flex; gap:1rem; flex:1; }
+  nav a { text-decoration:none; color:var(--muted); font-size:.9rem; }
+  nav a.actif, nav a:hover { color:var(--ink); }
+  h1 { font-size:1.35rem; margin:1.6rem 0 .3rem; }
+  .sub { color:var(--muted); font-size:.88rem; margin:0 0 1.3rem; }
+  .stats { display:flex; flex-wrap:wrap; gap:.7rem; margin:0 0 1.3rem; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:.6rem .9rem; min-width:104px; }
+  .stat b { display:block; font-size:1.3rem; }
+  .stat span { color:var(--muted); font-size:.72rem; text-transform:uppercase;
+               letter-spacing:.04em; }
+  .panneau { background:var(--panel); border:1px solid var(--line);
+             border-radius:12px; padding:1.1rem 1.2rem; margin-bottom:1.2rem; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { padding:.55rem .6rem; text-align:left; border-bottom:1px solid var(--line);
+          font-size:.88rem; vertical-align:top; }
+  th { font-size:.72rem; text-transform:uppercase; letter-spacing:.03em;
+       color:var(--muted); font-weight:600; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--chip); }
+  .scroll { overflow-x:auto; }
+  .score { font-weight:700; font-variant-numeric:tabular-nums; }
+  .haut { color:var(--accent); } .bas { color:var(--muted); }
+  .chip { display:inline-block; background:var(--chip); border-radius:99px;
+          padding:.12rem .5rem; font-size:.74rem; margin:0 .18rem .18rem 0; }
+  .badge { font-size:.72rem; padding:.15rem .5rem; border-radius:99px;
+           background:var(--chip); white-space:nowrap; }
+  button, .bouton { font:inherit; font-size:.85rem; padding:.45rem .85rem;
+          border-radius:8px; border:1px solid var(--line); background:var(--chip);
+          color:var(--ink); cursor:pointer; text-decoration:none; display:inline-block; }
+  button.primaire { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  select, input { font:inherit; font-size:.85rem; padding:.4rem .5rem; border-radius:8px;
+                  border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  form.enligne { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .avert { border-left:3px solid var(--warn); padding:.6rem .9rem; background:var(--chip);
+           border-radius:0 8px 8px 0; font-size:.87rem; }
+  pre { background:var(--chip); padding:1rem; border-radius:10px; overflow-x:auto;
+        font-size:.85rem; white-space:pre-wrap; word-wrap:break-word; }
+  footer { color:var(--muted); font-size:.78rem; margin-top:2.5rem;
+           border-top:1px solid var(--line); padding-top:1rem; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="marque">freelance-radar</span>
+  <nav>
+    <a href="/" class="{{ 'actif' if page_actif == 'offres' }}">Offres</a>
+    <a href="/candidatures" class="{{ 'actif' if page_actif == 'candidatures' }}">Candidatures</a>
+  </nav>
+  <form method="post" action="/campagne">
+    <button type="submit" class="primaire" {{ 'disabled' if campagne.running }}
+            id="btn-campagne">
+      {{ "Campagne en cours..." if campagne.running else "Lancer une campagne" }}
+    </button>
+  </form>
+</div></header>
+
+<div class="wrap">
+{% block contenu %}{% endblock %}
+  <footer>
+    Brouillons uniquement — cet outil n'envoie aucun message et ne soumet aucun
+    formulaire. Serveur local, accessible depuis cette machine seulement.
+  </footer>
+</div>
+
+{% if campagne.running %}
+<script>
+  // Une campagne dure plusieurs minutes : on sonde son etat et on recharge
+  // la page des qu'elle se termine, plutot que de laisser un bouton fige.
+  (function () {
+    var timer = setInterval(function () {
+      fetch("/campagne/etat").then(function (r) { return r.json(); }).then(function (e) {
+        var b = document.getElementById("btn-campagne");
+        if (e.running) {
+          if (b) { b.textContent = "En cours : " + e.step + (e.detail ? " — " + e.detail : ""); }
+        } else {
+          clearInterval(timer);
+          location.reload();
+        }
+      }).catch(function () { clearInterval(timer); });
+    }, 2000);
+  })();
+</script>
+{% endif %}
+</body>
+</html>

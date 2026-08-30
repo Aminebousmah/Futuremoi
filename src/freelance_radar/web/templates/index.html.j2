@@ -1,0 +1,85 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "offres" %}
+{% block titre %}Offres — freelance-radar{% endblock %}
+
+{% block contenu %}
+<h1>Offres</h1>
+<p class="sub">
+  {{ offres|length }} offre(s) affichée(s) · profil : {{ profil.name or "non renseigné" }}
+  · seuil de candidature : {{ "%.0f"|format(seuil) }}/100
+</p>
+
+{% if campagne.error %}
+<div class="panneau avert">Dernière campagne en échec : {{ campagne.error }}</div>
+{% elif campagne.result %}
+<div class="panneau avert">
+  Dernière campagne : {{ campagne.result.collectees }} collectées,
+  <strong>{{ campagne.result.retenues }}</strong> retenues,
+  {{ campagne.result.nouvelles }} nouvelles.
+  {% if campagne.result.rejets %}<br><span class="bas">Rejets : {{ campagne.result.rejets }}</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="stats">
+  {% for statut, n in par_statut.items() %}
+  <div class="stat"><b>{{ n }}</b><span>{{ statut|statut }}</span></div>
+  {% endfor %}
+</div>
+
+<div class="panneau">
+  <form class="enligne" method="get" action="/">
+    <label>Score min
+      <input type="number" name="score_min" min="0" max="100" step="5"
+             value="{{ filtres.score_min|int }}" style="width:5rem">
+    </label>
+    <label>Statut
+      <select name="statut">
+        <option value="">tous</option>
+        {% for s in statuts %}
+        <option value="{{ s }}" {{ 'selected' if filtres.statut == s }}>{{ s|statut }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Source
+      <select name="source">
+        <option value="">toutes</option>
+        {% for s in par_source %}
+        <option value="{{ s }}" {{ 'selected' if filtres.source == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Filtrer</button>
+    <a class="bouton" href="/">Réinitialiser</a>
+  </form>
+</div>
+
+<div class="panneau scroll">
+  <table>
+    <thead>
+      <tr><th>Score</th><th>Mission</th><th>Entreprise</th><th>Lieu</th>
+          <th>TJM</th><th>Compétences</th><th>Statut</th></tr>
+    </thead>
+    <tbody>
+    {% for o in offres %}
+      <tr>
+        <td class="score {{ 'haut' if o.score >= seuil else 'bas' }}">{{ "%.0f"|format(o.score) }}</td>
+        <td>
+          <a href="/offre/{{ o.id }}">{{ o.title }}</a><br>
+          <span class="bas" style="font-size:.76rem">{{ o.source }}</span>
+        </td>
+        <td>{{ o.company or "—" }}</td>
+        <td>{{ o.location or "—" }}<br>
+            <span class="bas" style="font-size:.76rem">{{ o.remote.value }}</span></td>
+        <td>{{ (o.daily_rate ~ " €") if o.daily_rate else "—" }}</td>
+        <td>{% for s in o.skills[:5] %}<span class="chip">{{ s }}</span>{% endfor %}</td>
+        <td><span class="badge">{{ o.status.value|statut }}</span></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="bas">
+        Aucune offre. Lancez une campagne depuis le bouton en haut à droite.
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

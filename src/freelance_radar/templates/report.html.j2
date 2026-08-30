@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar freelance Data — {{ generated_at }}</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #ffffff; --ink: #1f2328; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2f6f4f; --warn: #b45309; --chip: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16181c; --panel:#1e2126; --ink:#e8eaed; --muted:#9aa1ab;
+            --line:#2d3138; --accent:#6bbf8f; --warn:#e0a45e; --chip:#272b31; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:2rem 1.25rem; background:var(--bg); color:var(--ink);
+         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size:1.5rem; margin:0 0 .25rem; }
+  .sub { color:var(--muted); margin:0 0 1.5rem; font-size:.9rem; }
+  .stats { display:flex; flex-wrap:wrap; gap:.75rem; margin-bottom:1.5rem; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+          padding:.7rem 1rem; min-width:120px; }
+  .stat b { display:block; font-size:1.4rem; }
+  .stat span { color:var(--muted); font-size:.78rem; text-transform:uppercase;
+               letter-spacing:.04em; }
+  table { width:100%; border-collapse:collapse; background:var(--panel);
+          border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th, td { padding:.6rem .7rem; text-align:left; border-bottom:1px solid var(--line);
+           vertical-align:top; font-size:.88rem; }
+  th { background:var(--chip); font-weight:600; font-size:.78rem;
+       text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  tr:last-child td { border-bottom:none; }
+  a { color:var(--accent); }
+  .score { font-weight:700; font-variant-numeric:tabular-nums; }
+  .hi { color:var(--accent); } .lo { color:var(--muted); }
+  .chip { display:inline-block; background:var(--chip); border-radius:99px;
+          padding:.1rem .5rem; font-size:.75rem; margin:0 .2rem .2rem 0; }
+  .scroll { overflow-x:auto; }
+  footer { color:var(--muted); font-size:.8rem; margin-top:2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Radar freelance Data</h1>
+  <p class="sub">Genere le {{ generated_at }} — {{ offers|length }} offres affichees.</p>
+
+  <div class="stats">
+    <div class="stat"><b>{{ stats.total }}</b><span>en base</span></div>
+    <div class="stat"><b>{{ stats.new }}</b><span>a traiter</span></div>
+    <div class="stat"><b>{{ stats.drafted }}</b><span>brouillons</span></div>
+    <div class="stat"><b>{{ stats.sent }}</b><span>envoyees</span></div>
+    <div class="stat"><b>{{ stats.avg_score }}</b><span>score moyen</span></div>
+  </div>
+
+  <div class="scroll">
+  <table>
+    <thead>
+      <tr><th>Score</th><th>Mission</th><th>Entreprise</th><th>Lieu / rythme</th>
+          <th>TJM</th><th>Competences</th><th>Statut</th></tr>
+    </thead>
+    <tbody>
+    {% for o in offers %}
+      <tr>
+        <td class="score {{ 'hi' if o.score >= threshold else 'lo' }}">{{ "%.0f"|format(o.score) }}</td>
+        <td><a href="{{ o.url }}" target="_blank" rel="noopener">{{ o.title }}</a><br>
+            <span class="lo" style="font-size:.78rem">{{ o.source }} · {{ o.id }}</span></td>
+        <td>{{ o.company or "—" }}</td>
+        <td>{{ o.location or "—" }}<br><span class="lo" style="font-size:.78rem">{{ o.remote.value }}</span></td>
+        <td>{{ o.daily_rate ~ " EUR" if o.daily_rate else "—" }}</td>
+        <td>{% for s in o.skills[:6] %}<span class="chip">{{ s }}</span>{% endfor %}</td>
+        <td>{{ o.status.value }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <footer>
+    freelance-radar — brouillons uniquement, aucun envoi automatise.
+    Les liens pointent vers les annonces d'origine.
+  </footer>
+</div>
+</body>
+</html>

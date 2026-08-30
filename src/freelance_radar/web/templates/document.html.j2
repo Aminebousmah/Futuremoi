@@ -1,0 +1,15 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "candidatures" %}
+{% block titre %}{{ nom }} — {{ offre.title }}{% endblock %}
+
+{% block contenu %}
+<h1>{{ nom }}</h1>
+<p class="sub">
+  {{ offre.title }} · <a href="/offre/{{ offre.id }}">retour à l'offre</a>
+</p>
+<div class="panneau avert">
+  Brouillon à relire avant tout envoi. Le fichier est modifiable directement dans
+  <code>{{ dossier }}</code>.
+</div>
+<div class="panneau"><pre>{{ contenu }}</pre></div>
+{% endblock %}

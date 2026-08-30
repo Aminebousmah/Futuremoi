@@ -1,0 +1,199 @@
+# ============================================================
+#  freelance-radar — configuration de la veille
+# ============================================================
+
+search:
+  # Mots-cles principaux : une offre doit matcher au moins un "must"
+  keywords_any:
+    - data
+    - donnees
+    - donnée
+    - analytics
+    - "business intelligence"
+    - bi
+    - etl
+    - elt
+    - datawarehouse
+    - "data warehouse"
+    - dataviz
+    - machine learning
+    - ml
+  # Termes qui disqualifient l'offre (bruit frequent sur "data")
+  exclude_any:
+    - stage
+    - alternance
+    - apprentissage
+    - internship
+    # "data entry" = saisie administrative : le piege classique du mot-cle "data"
+    - "data entry"
+    - "saisie de donnees"
+    - "data annotation"
+    - "administrative assistant"
+    - "assistant administratif"
+    # Postes de formation : activite freelance legitime, mais hors du perimetre
+    # vise ici. Ces termes ne sont testes que sur le TITRE, donc une mission
+    # mentionnant "formation continue" dans sa description n'est pas ecartee.
+    - formateur
+    - formatrice
+    - formation
+    - "forme les"
+    - enseignant
+    # Metiers techniques voisins : ils citent souvent les memes outils (Python,
+    # Azure, CI/CD) sans etre des missions data. Teste sur le titre uniquement.
+    - "software engineer"
+    - "qa engineer"
+    - "full stack"
+    - "full-stack"
+    - "fullstack"
+    - frontend
+    - "front-end"
+    - backend
+    - "back-end"
+    - devops
+    - "site reliability"
+    - "data center"
+    - datacenter
+    - cablage
+    - commercial
+  # Langues acceptees des annonces
+  languages: [fr, en]
+  # Si aucun mot-cle n'apparait dans le TITRE, nombre minimum de competences
+  # SPECIFIQUEMENT DATA (dbt, Airflow, Power BI, Data Modeling, MLOps...) pour
+  # retenir l'offre malgre tout. Les outils partages avec le developpement
+  # logiciel (Python, Java, Docker, CI/CD, AWS, SQL) ne comptent pas : sinon
+  # n'importe quel poste de dev passe le filtre d'un radar Data.
+  min_skills_without_title_match: 2
+
+filters:
+  # Types de contrat retenus (normalises par le pipeline)
+  contracts: [freelance, contractor, independant, mission, portage]
+  # Anciennete max d'une offre, en jours
+  max_age_days: 30
+  # TJM minimum en EUR (les offres sans TJM affiche sont conservees)
+  min_daily_rate: 400
+  # Localisations acceptees (insensible a la casse et aux accents). Vide = tout.
+  # Role de cette liste : dire "accessible depuis la France", pas choisir une
+  # region — on ne filtre donc plus par ville. Elle s'applique aussi aux offres
+  # full remote : une mission "remote" reservee a Kuala Lumpur reste hors jeu.
+  #
+  # Piege de format : Free-Work rend "Lyon, Auvergne-Rhone-Alpes, FR" — le mot
+  # "France" n'y figure pas, mais le suffixe pays "FR" oui. L'entree "fr" (matchee
+  # sur frontiere de mot) couvre donc toutes les annonces francaises de cette
+  # source, ce que "france" seul ne ferait pas.
+  locations:
+    - remote
+    - "full remote"
+    - teletravail
+    - worldwide
+    - anywhere
+    - europe
+    - emea
+    - france
+    - fr
+  # Sources nationales par construction : le filtre de localisation n'y apporte
+  # rien et se heurte a leur format ("31 - Toulouse" ne contient ni "France" ni "FR").
+  locations_skip_sources:
+    - francetravail
+  remote_only: false
+
+sources:
+  # Chaque source peut etre desactivee individuellement.
+  # kind: api  -> endpoint JSON public, aucune cle requise
+  # kind: rss  -> flux RSS/Atom officiel
+  # kind: html -> scraping HTML (robots.txt verifie, rate-limit applique)
+  remotive:
+    enabled: true
+    kind: api
+    limit: 100
+  remoteok:
+    enabled: true
+    kind: api
+    tags: [data, analyst, sql, "machine learning"]
+  freework:
+    enabled: true
+    kind: html
+    max_pages: 3
+  # --- Sources francaises ---
+  freelanceinfo:
+    enabled: true
+    kind: html
+    # Le site publie toutes les offres d'une page dans son JSON-LD : 4 pages
+    # = ~144 missions pour 4 requetes seulement.
+    max_pages: 4
+  lesjeudis:
+    # Desactivee : ~10 offres par campagne pour 20+ requetes, essentiellement
+    # du salariat que le filtre de contrat rejette. Le rendement ne justifie
+    # pas la sollicitation du site. Le scraper reste en place : passer a `true`
+    # suffit a la reactiver.
+    enabled: false
+    kind: html
+    queries: [data]
+    max_pages: 2
+    max_offers: 40
+
+  # --- Job boards remote (API JSON publiques, sans cle) ---
+  jobicy:
+    enabled: true
+    kind: api
+    industry: data-science
+    count: 50
+  himalayas:
+    enabled: true
+    kind: api
+    limit: 50
+  arbeitnow:
+    enabled: true
+    kind: api
+  workingnomads:
+    enabled: true
+    kind: api
+
+  adzuna:
+    enabled: false        # necessite ADZUNA_APP_ID / ADZUNA_APP_KEY
+    kind: api
+    country: fr
+    max_pages: 3
+  francetravail:
+    enabled: true         # necessite FRANCE_TRAVAIL_CLIENT_ID / _SECRET dans .env
+    kind: api
+    queries: [data]
+    # Code du referentiel France Travail. LIB = profession liberale, le seul
+    # code qui corresponde vraiment a du freelance ; MIS est de l'interim.
+    # Mettre "" pour tout voir, ou "LIB,CDD" pour elargir.
+    type_contrat: LIB
+    # departement: "75"   # optionnel : restreindre a un departement
+    max_results: 150      # plafond impose par l'API sur une pagination
+
+http:
+  # Politesse : delai minimum entre deux requetes vers un meme domaine (s)
+  delay_seconds: 1.5
+  timeout_seconds: 20
+  max_retries: 3
+  respect_robots_txt: true
+  cache_ttl_minutes: 60   # 0 = pas de cache disque
+
+scoring:
+  # Poids du score de matching (total libre, normalise en 0-100)
+  weights:
+    skills_match: 45      # recoupement avec les competences du profil
+    daily_rate: 20        # TJM vs objectif du profil
+    remote: 15            # compatibilite teletravail
+    freshness: 10         # anciennete de l'annonce
+    duration: 10          # duree de mission vs preference
+  # Seuil a partir duquel une offre est marquee "a candidater"
+  apply_threshold: 65
+
+application:
+  # Le generateur produit TOUJOURS des brouillons. Rien n'est envoye
+  # automatiquement : la relecture et l'envoi restent manuels.
+  auto_send: false
+  language: fr
+  tone: "professionnel, direct, oriente resultats"
+  max_words: 320
+  output_dir: output/applications
+  # Utiliser un LLM si ANTHROPIC_API_KEY est defini, sinon templates Jinja2
+  use_llm: true
+
+storage:
+  database: data/radar.db
+  cache_dir: data/cache
