@@ -145,3 +145,76 @@ class TestMasquageDesIdentifiants:
             logger.info("HTTP Request: GET %s", FausseUrl())
         assert "tressecret" not in caplog.text
         assert "***" in caplog.text
+
+
+class TestAnnotations:
+    """Annoter, selectionner, ecarter : le travail manuel sur les offres."""
+
+    def test_enregistrer_une_note(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/note",
+                        data={"note": "Relancer Marie le 15"}, follow_redirects=False)
+        assert r.status_code == 303
+        db = Database(cfg.db_path)
+        assert db.get_offer(offre_en_base.id).notes == "Relancer Marie le 15"
+        db.close()
+
+    def test_basculer_la_selection(self, client, cfg, offre_en_base):
+        client.post(f"/offre/{offre_en_base.id}/selection")
+        db = Database(cfg.db_path)
+        assert db.get_offer(offre_en_base.id).starred is True
+        db.close()
+        client.post(f"/offre/{offre_en_base.id}/selection")
+        db = Database(cfg.db_path)
+        assert db.get_offer(offre_en_base.id).starred is False
+        db.close()
+
+    def test_ecarter_masque_l_offre(self, client, cfg, offre_en_base):
+        client.post(f"/offre/{offre_en_base.id}/ecarter")
+        assert offre_en_base.title not in client.get("/").text
+        # ... mais elle reste consultable via le filtre dedie
+        assert offre_en_base.title in client.get("/?ecartees=true").text
+
+    def test_une_offre_ecartee_ne_revient_pas_apres_une_campagne(self, cfg, profile,
+                                                                 offre_en_base):
+        """Une suppression reelle serait annulee au prochain scrape.
+
+        C'est pourquoi `discard` masque au lieu de supprimer : la ligne reste
+        en base comme memoire de la decision.
+        """
+        from conftest import make_offer
+
+        db = Database(cfg.db_path)
+        db.discard(offre_en_base.id)
+        db.upsert_offers([make_offer()])          # la campagne suivante la revoit
+        relue = db.get_offer(offre_en_base.id)
+        assert relue.discarded is True
+        assert relue.id not in [o.id for o in db.list_offers(limit=50)]
+        db.close()
+
+    def test_une_campagne_n_ecrase_pas_les_annotations(self, cfg, offre_en_base):
+        from conftest import make_offer
+
+        db = Database(cfg.db_path)
+        db.set_note(offre_en_base.id, "mon analyse")
+        db.toggle_star(offre_en_base.id)
+        db.upsert_offers([make_offer()])
+        relue = db.get_offer(offre_en_base.id)
+        assert relue.notes == "mon analyse" and relue.starred is True
+        db.close()
+
+    def test_filtre_selection(self, client, cfg, offre_en_base):
+        assert "Aucune offre" in client.get("/?selection=true").text
+        client.post(f"/offre/{offre_en_base.id}/selection")
+        assert offre_en_base.title in client.get("/?selection=true").text
+
+    def test_bouton_j_ai_postule(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/postuler", follow_redirects=False)
+        assert r.status_code == 303
+        db = Database(cfg.db_path)
+        assert db.get_offer(offre_en_base.id).status == ApplicationStatus.SENT
+        db.close()
+
+    def test_actions_sur_offre_inconnue(self, client):
+        for route in ("note", "selection", "ecarter", "postuler"):
+            assert client.post(f"/offre/inexistante/{route}",
+                               data={"note": "x"}).status_code == 404

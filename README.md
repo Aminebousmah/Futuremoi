@@ -62,6 +62,19 @@ C'est délibéré — l'interface expose votre profil, vos coordonnées et vos
 candidatures. `--host 0.0.0.0` l'ouvre au réseau local, avec un avertissement
 explicite au démarrage ; ne le faites qu'en connaissance de cause.
 
+**Ce qu'elle permet :**
+
+- **Annoter** chaque offre (interlocuteur, relance prévue, ce qui vous a plu).
+- **Sélectionner** les offres intéressantes (★) et filtrer sur cette sélection.
+- **Écarter** ce qui ne vous concerne pas — l'offre disparaît des listes.
+- **Générer un brouillon** de candidature, et marquer « j'ai postulé » après envoi.
+- **Suivre** vos candidatures dans un tableau dédié, avec accès aux documents.
+
+Écarter **masque** l'offre, ça ne la supprime pas de la base. C'est délibéré : une
+suppression réelle serait annulée à la campagne suivante, qui réinsérerait la même
+annonce. La ligne reste donc comme mémoire de votre décision. De même, une campagne
+n'écrase jamais vos notes ni votre sélection.
+
 L'interface pilote exactement le même moteur que la CLI : `pipeline.runner` pour
 les campagnes, `apply.generator` pour les brouillons, la même base SQLite. Rien
 n'y est réimplémenté, et la règle du projet y tient aussi — **elle génère des
@@ -179,7 +192,7 @@ freelance-radar/
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 152 tests, sans accès réseau
+└── tests/                     # 160 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -460,7 +473,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 152 tests, aucun accès réseau
+pytest              # 160 tests, aucun accès réseau
 ruff check src tests
 ```
 

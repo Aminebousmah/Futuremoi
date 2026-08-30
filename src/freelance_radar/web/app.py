@@ -58,6 +58,9 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
     def page(request: Request, name: str, **ctx: Any) -> HTMLResponse:
         base = {
             "request": request,
+            # Les formulaires d'action renvoient ici : on conserve ainsi les
+            # filtres en cours au lieu de retomber sur la liste complete.
+            "url_courante": str(request.url.replace(scheme="", netloc="")) or "/",
             "profil": profile,
             "seuil": cfg.scoring.apply_threshold,
             "campagne": campaign.snapshot(),
@@ -69,19 +72,22 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
     # ------------------------------------------------------------------ #
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request, score_min: float = 0, statut: str = "",
-              source: str = "", limite: int = 100) -> HTMLResponse:
+              source: str = "", limite: int = 100, selection: bool = False,
+              ecartees: bool = False) -> HTMLResponse:
         base = db()
         try:
             offres = base.list_offers(
                 min_score=score_min, status=statut or None,
                 source=source or None, limit=limite,
+                starred_only=selection, include_discarded=ecartees,
             )
             ctx = {
                 "offres": offres,
                 "par_statut": base.counts_by_status(),
                 "par_source": base.counts_by_source(),
                 "filtres": {"score_min": score_min, "statut": statut,
-                            "source": source, "limite": limite},
+                            "source": source, "limite": limite,
+                            "selection": selection, "ecartees": ecartees},
                 "statuts": [s.value for s in ApplicationStatus],
             }
         finally:
@@ -143,6 +149,50 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         finally:
             base.close()
         return RedirectResponse(f"/offre/{offer_id}", status_code=303)
+
+    @app.post("/offre/{offer_id}/note")
+    def enregistrer_note(offer_id: str, note: str = Form(""),
+                         retour: str = Form("")) -> RedirectResponse:
+        base = db()
+        try:
+            if not base.set_note(offer_id, note.strip()):
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        return RedirectResponse(retour or f"/offre/{offer_id}", status_code=303)
+
+    @app.post("/offre/{offer_id}/selection")
+    def basculer_selection(offer_id: str, retour: str = Form("")) -> RedirectResponse:
+        base = db()
+        try:
+            if base.toggle_star(offer_id) is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        return RedirectResponse(retour or f"/offre/{offer_id}", status_code=303)
+
+    @app.post("/offre/{offer_id}/ecarter")
+    def ecarter(offer_id: str, remettre: bool = Form(False),
+                retour: str = Form("")) -> RedirectResponse:
+        """Masque une offre sans la supprimer : sinon la campagne suivante la reinsere."""
+        base = db()
+        try:
+            if not base.discard(offer_id, discarded=not remettre):
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        return RedirectResponse(retour or "/", status_code=303)
+
+    @app.post("/offre/{offer_id}/postuler")
+    def marquer_postulee(offer_id: str, retour: str = Form("")) -> RedirectResponse:
+        """Marque une candidature comme envoyee — apres un envoi fait a la main."""
+        base = db()
+        try:
+            if not base.set_status(offer_id, ApplicationStatus.SENT):
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        return RedirectResponse(retour or f"/offre/{offer_id}", status_code=303)
 
     # ------------------------------------------------------------------ #
     #  Campagne de veille

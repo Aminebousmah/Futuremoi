@@ -79,6 +79,11 @@ class JobOffer(BaseModel):
     score_detail: dict[str, Any] = Field(default_factory=dict)
     status: ApplicationStatus = ApplicationStatus.NEW
 
+    # --- Annotations de l'utilisateur ---
+    notes: str = ""
+    starred: bool = False      # mise en avant manuelle
+    discarded: bool = False    # ecartee a la main ; masquee, mais conservee
+
     @field_validator("title", "company", "location", mode="before")
     @classmethod
     def _clean_text(cls, v: Any) -> str:

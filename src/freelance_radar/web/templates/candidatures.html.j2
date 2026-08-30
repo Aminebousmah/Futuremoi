@@ -18,18 +18,20 @@
 <div class="panneau scroll">
   <table>
     <thead>
-      <tr><th>Score</th><th>Mission</th><th>Entreprise</th><th>TJM proposé</th>
-          <th>Statut</th><th>Créée le</th><th>Documents</th></tr>
+      <tr><th></th><th>Score</th><th>Mission</th><th>Entreprise</th><th>TJM proposé</th>
+          <th>Statut</th><th>Créée le</th><th>Notes</th><th>Documents</th></tr>
     </thead>
     <tbody>
     {% for offre, cand in lignes %}
       <tr>
+        <td>{{ "★" if offre.starred else "" }}</td>
         <td class="score {{ 'haut' if offre.score >= seuil else 'bas' }}">{{ "%.0f"|format(offre.score) }}</td>
         <td><a href="/offre/{{ offre.id }}">{{ offre.title }}</a></td>
         <td>{{ offre.company or "—" }}</td>
         <td>{{ (cand.proposed_rate ~ " €") if cand.proposed_rate else "—" }}</td>
         <td><span class="badge">{{ offre.status.value|statut }}</span></td>
         <td>{{ cand.created_at.strftime("%d/%m") }}</td>
+        <td class="bas" style="font-size:.8rem">{{ offre.notes[:60] or "—" }}</td>
         <td>
           <a href="/document/{{ offre.id }}/lettre.md">lettre</a> ·
           <a href="/document/{{ offre.id }}/email.md">email</a> ·
@@ -37,7 +39,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="7" class="bas">
+      <tr><td colspan="9" class="bas">
         Aucune candidature. Ouvrez une offre et générez un brouillon.
       </td></tr>
     {% endfor %}

@@ -48,6 +48,14 @@
         {% endfor %}
       </select>
     </label>
+    <label class="case">
+      <input type="checkbox" name="selection" value="true"
+             {{ 'checked' if filtres.selection }}> ★ sélection
+    </label>
+    <label class="case">
+      <input type="checkbox" name="ecartees" value="true"
+             {{ 'checked' if filtres.ecartees }}> voir les écartées
+    </label>
     <button type="submit">Filtrer</button>
     <a class="bouton" href="/">Réinitialiser</a>
   </form>
@@ -56,26 +64,46 @@
 <div class="panneau scroll">
   <table>
     <thead>
-      <tr><th>Score</th><th>Mission</th><th>Entreprise</th><th>Lieu</th>
-          <th>TJM</th><th>Compétences</th><th>Statut</th></tr>
+      <tr><th></th><th>Score</th><th>Mission</th><th>Entreprise</th><th>Lieu</th>
+          <th>TJM</th><th>Statut</th><th>Actions</th></tr>
     </thead>
     <tbody>
     {% for o in offres %}
-      <tr>
+      <tr class="{{ 'ecartee' if o.discarded }}">
+        <td>
+          <form method="post" action="/offre/{{ o.id }}/selection" class="compact">
+            <input type="hidden" name="retour" value="{{ url_courante }}">
+            <button type="submit" class="etoile" title="Mettre en sélection"
+                    >{{ "★" if o.starred else "☆" }}</button>
+          </form>
+        </td>
         <td class="score {{ 'haut' if o.score >= seuil else 'bas' }}">{{ "%.0f"|format(o.score) }}</td>
         <td>
-          <a href="/offre/{{ o.id }}">{{ o.title }}</a><br>
-          <span class="bas" style="font-size:.76rem">{{ o.source }}</span>
+          <a href="/offre/{{ o.id }}">{{ o.title }}</a>
+          {% if o.notes %}<span title="{{ o.notes }}">📝</span>{% endif %}<br>
+          <span class="bas" style="font-size:.76rem">
+            {{ o.source }}{% for s in o.skills[:4] %} · {{ s }}{% endfor %}
+          </span>
         </td>
         <td>{{ o.company or "—" }}</td>
         <td>{{ o.location or "—" }}<br>
             <span class="bas" style="font-size:.76rem">{{ o.remote.value }}</span></td>
         <td>{{ (o.daily_rate ~ " €") if o.daily_rate else "—" }}</td>
-        <td>{% for s in o.skills[:5] %}<span class="chip">{{ s }}</span>{% endfor %}</td>
         <td><span class="badge">{{ o.status.value|statut }}</span></td>
+        <td class="actions">
+          <form method="post" action="/offre/{{ o.id }}/ecarter" class="compact">
+            <input type="hidden" name="retour" value="{{ url_courante }}">
+            {% if o.discarded %}
+            <input type="hidden" name="remettre" value="true">
+            <button type="submit" title="Remettre dans la liste">↩</button>
+            {% else %}
+            <button type="submit" title="Écarter cette offre">✕</button>
+            {% endif %}
+          </form>
+        </td>
       </tr>
     {% else %}
-      <tr><td colspan="7" class="bas">
+      <tr><td colspan="8" class="bas">
         Aucune offre. Lancez une campagne depuis le bouton en haut à droite.
       </td></tr>
     {% endfor %}

@@ -39,7 +39,10 @@ CREATE TABLE IF NOT EXISTS offers (
     first_seen_at   TEXT,
     score           REAL DEFAULT 0,
     score_detail    TEXT,
-    status          TEXT DEFAULT 'new'
+    status          TEXT DEFAULT 'new',
+    notes           TEXT DEFAULT '',
+    starred         INTEGER DEFAULT 0,
+    discarded       INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_offers_score  ON offers(score DESC);
 CREATE INDEX IF NOT EXISTS idx_offers_status ON offers(status);
@@ -85,7 +88,23 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Ajoute les colonnes apparues apres coup.
+
+        `CREATE TABLE IF NOT EXISTS` ne touche pas une table deja creee : sans
+        ceci, une base existante resterait sans les colonnes d'annotation.
+        """
+        existantes = {r["name"] for r in self.conn.execute("PRAGMA table_info(offers)")}
+        for colonne, definition in (
+            ("notes", "TEXT DEFAULT ''"),
+            ("starred", "INTEGER DEFAULT 0"),
+            ("discarded", "INTEGER DEFAULT 0"),
+        ):
+            if colonne not in existantes:
+                self.conn.execute(f"ALTER TABLE offers ADD COLUMN {colonne} {definition}")
 
     # ------------------------------------------------------------------ #
     #  Offres
@@ -100,12 +119,19 @@ class Database:
         new_count = updated = 0
         for offer in offers:
             existing = self.conn.execute(
-                "SELECT status, first_seen_at FROM offers WHERE id = ?", (offer.id,)
+                "SELECT status, first_seen_at, notes, starred, discarded "
+                "FROM offers WHERE id = ?", (offer.id,)
             ).fetchone()
             row = self._offer_to_row(offer)
             if existing:
                 row["status"] = existing["status"]
                 row["first_seen_at"] = existing["first_seen_at"]
+                # Les annotations sont le travail de l'utilisateur : une
+                # campagne ne doit jamais les ecraser, ni ressusciter une offre
+                # ecartee a la main.
+                row["notes"] = existing["notes"] or ""
+                row["starred"] = existing["starred"] or 0
+                row["discarded"] = existing["discarded"] or 0
                 # On repercute le statut conserve sur l'objet en memoire : sinon
                 # le recapitulatif affiche apres une campagne montrerait "new"
                 # pour des offres deja traitees.
@@ -113,6 +139,7 @@ class Database:
                 updated += 1
             else:
                 row["first_seen_at"] = _now()
+                row["notes"], row["starred"], row["discarded"] = "", 0, 0
                 new_count += 1
             columns = ", ".join(row)
             placeholders = ", ".join(f":{k}" for k in row)
@@ -130,9 +157,15 @@ class Database:
         source: str | None = None,
         limit: int = 50,
         new_only: bool = False,
+        starred_only: bool = False,
+        include_discarded: bool = False,
     ) -> list[JobOffer]:
         sql = "SELECT * FROM offers WHERE score >= ?"
         params: list[Any] = [min_score]
+        if not include_discarded:
+            sql += " AND COALESCE(discarded, 0) = 0"
+        if starred_only:
+            sql += " AND COALESCE(starred, 0) = 1"
         if status:
             sql += " AND status = ?"
             params.append(status)
@@ -166,15 +199,50 @@ class Database:
         self.conn.commit()
         return cur.rowcount > 0
 
+    # ------------------------------------------------------------------ #
+    #  Annotations
+    # ------------------------------------------------------------------ #
+    def set_note(self, offer_id: str, note: str) -> bool:
+        cur = self.conn.execute("UPDATE offers SET notes = ? WHERE id = ?", (note, offer_id))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def toggle_star(self, offer_id: str) -> bool | None:
+        """Bascule la selection. Rend le nouvel etat, ou None si l'offre est inconnue."""
+        row = self.conn.execute(
+            "SELECT COALESCE(starred, 0) AS s FROM offers WHERE id = ?", (offer_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        nouveau = 0 if row["s"] else 1
+        self.conn.execute("UPDATE offers SET starred = ? WHERE id = ?", (nouveau, offer_id))
+        self.conn.commit()
+        return bool(nouveau)
+
+    def discard(self, offer_id: str, discarded: bool = True) -> bool:
+        """Ecarte une offre sans la supprimer.
+
+        Une suppression reelle serait annulee a la campagne suivante : le
+        scraper reinsererait la meme annonce. On garde donc la ligne comme
+        memoire de la decision, et on la masque partout.
+        """
+        cur = self.conn.execute(
+            "UPDATE offers SET discarded = ? WHERE id = ?", (1 if discarded else 0, offer_id)
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
     def counts_by_status(self) -> dict[str, int]:
         rows = self.conn.execute(
-            "SELECT status, COUNT(*) AS n FROM offers GROUP BY status"
+            "SELECT status, COUNT(*) AS n FROM offers "
+            "WHERE COALESCE(discarded, 0) = 0 GROUP BY status"
         ).fetchall()
         return {r["status"]: r["n"] for r in rows}
 
     def counts_by_source(self) -> dict[str, int]:
         rows = self.conn.execute(
-            "SELECT source, COUNT(*) AS n FROM offers GROUP BY source ORDER BY n DESC"
+            "SELECT source, COUNT(*) AS n FROM offers "
+            "WHERE COALESCE(discarded, 0) = 0 GROUP BY source ORDER BY n DESC"
         ).fetchall()
         return {r["source"]: r["n"] for r in rows}
 
@@ -295,6 +363,9 @@ class Database:
             "score": offer.score,
             "score_detail": json.dumps(offer.score_detail, ensure_ascii=False, default=str),
             "status": offer.status.value,
+            "notes": "",
+            "starred": 0,
+            "discarded": 0,
         }
 
     @staticmethod
@@ -324,6 +395,9 @@ class Database:
             score=row["score"] or 0.0,
             score_detail=json.loads(row["score_detail"] or "{}"),
             status=ApplicationStatus(row["status"] or "new"),
+            notes=row["notes"] or "",
+            starred=bool(row["starred"]),
+            discarded=bool(row["discarded"]),
         )
 
     # ------------------------------------------------------------------ #

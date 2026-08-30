@@ -3,7 +3,22 @@
 {% block titre %}{{ offre.title }} — freelance-radar{% endblock %}
 
 {% block contenu %}
-<h1>{{ offre.title }}</h1>
+<h1>
+  {{ offre.title }}
+  <form method="post" action="/offre/{{ offre.id }}/selection" class="compact">
+    <button type="submit" class="etoile" title="Mettre en sélection"
+            >{{ "★" if offre.starred else "☆" }}</button>
+  </form>
+</h1>
+{% if offre.discarded %}
+<div class="panneau avert">
+  Offre écartée : elle n'apparaît plus dans la liste.
+  <form method="post" action="/offre/{{ offre.id }}/ecarter" class="compact">
+    <input type="hidden" name="remettre" value="true">
+    <button type="submit">↩ la remettre</button>
+  </form>
+</div>
+{% endif %}
 <p class="sub">
   <span class="score {{ 'haut' if offre.score >= seuil else 'bas' }}">{{ "%.0f"|format(offre.score) }}/100</span>
   · {{ offre.company or "entreprise non précisée" }}
@@ -48,6 +63,15 @@
 {% endif %}
 
 <div class="panneau">
+  <strong>Mes notes</strong>
+  <form method="post" action="/offre/{{ offre.id }}/note" style="margin-top:.6rem">
+    <textarea name="note" placeholder="Interlocuteur, relance prévue, ce qui vous a plu ou gêné…"
+              >{{ offre.notes }}</textarea>
+    <p style="margin:.5rem 0 0"><button type="submit">Enregistrer la note</button></p>
+  </form>
+</div>
+
+<div class="panneau">
   <strong>Candidature</strong>
   {% if candidature %}
     <p class="sub" style="margin:.5rem 0">
@@ -80,6 +104,20 @@
 </div>
 
 <div class="panneau">
+  <div class="enligne" style="margin-bottom:.8rem">
+    <form method="post" action="/offre/{{ offre.id }}/postuler" class="compact">
+      <button type="submit" class="primaire"
+              style="border:none;padding:.45rem .85rem;border-radius:8px;font-size:.85rem">
+        J'ai postulé
+      </button>
+    </form>
+    {% if not offre.discarded %}
+    <form method="post" action="/offre/{{ offre.id }}/ecarter" class="compact">
+      <input type="hidden" name="retour" value="/">
+      <button type="submit" style="font-size:.85rem">✕ Écarter cette offre</button>
+    </form>
+    {% endif %}
+  </div>
   <form class="enligne" method="post" action="/offre/{{ offre.id }}/statut">
     <strong style="margin-right:.3rem">Statut</strong>
     <select name="statut">
