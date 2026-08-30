@@ -114,6 +114,11 @@ filters:
   # rien et se heurte a leur format ("31 - Toulouse" ne contient ni "France" ni "FR").
   locations_skip_sources:
     - francetravail
+    # Adzuna est interroge avec country=fr : tous ses resultats sont en France.
+    # Ses libelles ("8eme Arrondissement, Paris", "Merignac, Bordeaux") ne
+    # contiennent ni "France" ni "FR" — sans cette ligne, 3 offres sur 4 sont
+    # rejetees a tort.
+    - adzuna
   remote_only: false
 
 sources:
@@ -172,10 +177,13 @@ sources:
     kind: api
 
   adzuna:
-    enabled: false        # necessite ADZUNA_APP_ID / ADZUNA_APP_KEY
+    enabled: true         # necessite ADZUNA_APP_ID / ADZUNA_APP_KEY dans .env
     kind: api
     country: fr
     max_pages: 3
+    # Adzuna traite `what` comme un ET : un terme par requete (herite de
+    # search.queries si cette cle est absente).
+    results_per_page: 50
   francetravail:
     enabled: true         # necessite FRANCE_TRAVAIL_CLIENT_ID / _SECRET dans .env
     kind: api

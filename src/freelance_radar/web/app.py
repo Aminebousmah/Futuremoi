@@ -222,6 +222,9 @@ def run(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None
     """
     import uvicorn
 
+    from ..secrets import install as install_redaction
+
+    install_redaction()
     if reload:
         # Le rechargement a chaud exige un chemin d'import, pas une instance.
         uvicorn.run("freelance_radar.web.app:create_app", host=host, port=port,

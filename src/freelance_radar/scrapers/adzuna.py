@@ -45,8 +45,9 @@ class AdzunaScraper(BaseScraper):
                         "what": requete,
                         "results_per_page": per_page,
                         "content-type": "application/json",
-                        # Adzuna n'a pas de filtre freelance : on cible le contrat court
-                        "contract_type": "contract",
+                        # Pas de `contract_type` ici : l'API le rejette en 400,
+                        # quelle que soit sa valeur. Le champ revient en revanche
+                        # dans chaque resultat, donc le tri se fait a la lecture.
                         "max_days_old": self.cfg.filters.max_age_days or 30,
                     },
                 )
@@ -64,9 +65,13 @@ class AdzunaScraper(BaseScraper):
             return None
         location = raw.get("location", {}) or {}
         company = raw.get("company", {}) or {}
-        contract = (ContractType.FREELANCE
-                    if str(raw.get("contract_type", "")).lower() == "contract"
-                    else ContractType.UNKNOWN)
+        # Adzuna n'expose que deux valeurs, et l'absence est frequente (~50 %).
+        # Mapper `permanent` explicitement evite de garder des CDI sous
+        # l'etiquette "inconnu", que le pipeline conserve par defaut.
+        contract = {
+            "contract": ContractType.FREELANCE,
+            "permanent": ContractType.CDI,
+        }.get(str(raw.get("contract_type", "")).lower(), ContractType.UNKNOWN)
         return JobOffer(
             source=self.name,
             source_id=str(raw.get("id", "")),

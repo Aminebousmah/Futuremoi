@@ -107,3 +107,41 @@ class TestCampagne:
     def test_etat_initial(self, client):
         etat = client.get("/campagne/etat").json()
         assert etat["running"] is False and etat["result"] == {}
+
+
+class TestMasquageDesIdentifiants:
+    """Les cles ne doivent jamais atterrir dans un journal.
+
+    Adzuna impose ses identifiants en parametres d'URL, et httpx journalise
+    l'URL complete au niveau INFO : sans masquage, `radar scrape -v` les
+    affichait en clair dans la console.
+    """
+
+    def test_url_avec_cles(self):
+        from freelance_radar.secrets import redact
+
+        masque = redact("GET https://api.adzuna.com/v1/api/jobs/fr/search/1"
+                        "?app_id=abc123&app_key=secret456&what=data")
+        assert "secret456" not in masque and "abc123" not in masque
+        assert "what=data" in masque   # le reste de l'URL reste lisible
+
+    def test_entete_authorization(self):
+        from freelance_radar.secrets import redact
+        assert "eyJhbGci" not in redact("Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.x")
+
+    def test_argument_non_textuel(self, caplog):
+        """httpx passe un objet URL, pas une chaine : le filtre doit quand meme masquer."""
+        import logging
+
+        from freelance_radar.secrets import RedactingFilter
+
+        class FausseUrl:
+            def __str__(self):
+                return "https://api.example.com/x?app_key=tressecret"
+
+        logger = logging.getLogger("test.masquage")
+        logger.addFilter(RedactingFilter())
+        with caplog.at_level(logging.INFO, logger="test.masquage"):
+            logger.info("HTTP Request: GET %s", FausseUrl())
+        assert "tressecret" not in caplog.text
+        assert "***" in caplog.text

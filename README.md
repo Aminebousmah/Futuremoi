@@ -179,7 +179,7 @@ freelance-radar/
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 141 tests, sans accès réseau
+└── tests/                     # 152 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -232,7 +232,8 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 
 | Source | Type | Clé | Couverture |
 |---|---|---|---|
-| **Free-Work** | HTML + JSON-LD | non | Missions freelance IT en France — le plus gros contributeur |
+| **Adzuna** | API officielle | oui | Agrégateur multi-boards France — **le plus gros contributeur** |
+| **Free-Work** | HTML + JSON-LD | non | Missions freelance IT en France |
 | **Freelance-Informatique** | HTML + JSON-LD | non | Missions freelance IT France, toutes régions |
 | **France Travail** | API officielle | oui | Toute la France, y compris hors métropoles |
 | **Jobicy** | API publique | non | Remote Europe/monde, filtrable par industrie |
@@ -245,11 +246,19 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 Neuf sources actives sans aucune configuration, hormis France Travail qui demande
 des clés gratuites (voir plus bas).
 
-Deux sources supplémentaires sont livrées mais **désactivées** dans `config.yaml` :
-**LesJeudis** (~10 offres par campagne pour une vingtaine de requêtes, essentiellement
-du salariat) et **Adzuna** (agrégateur multi-pays, nécessite `ADZUNA_APP_ID` /
-`ADZUNA_APP_KEY`, [inscription gratuite](https://developer.adzuna.com)). Passer
-leur `enabled` à `true` suffit à les réactiver.
+Adzuna nécessite des clés gratuites ([inscription](https://developer.adzuna.com)) :
+`ADZUNA_APP_ID` et `ADZUNA_APP_KEY` dans `.env`.
+
+**LesJeudis** est livrée mais désactivée (~10 offres par campagne pour une vingtaine
+de requêtes, essentiellement du salariat). Passer son `enabled` à `true` la réactive.
+
+### Identifiants et journaux
+
+Certaines API imposent leurs clés en **paramètres d'URL** (Adzuna), et le client
+HTTP journalise l'URL complète : en mode `-v`, les clés s'affichaient en clair.
+Un filtre de masquage est posé à la racine du logging (`secrets.py`) — il couvre
+aussi les messages de httpx et d'uvicorn, et masque `app_key`, `client_secret`,
+les jetons `Bearer` et les clés Anthropic.
 
 En pratique, sur un profil Data français, **Free-Work fournit l'essentiel du
 volume utile** ; les sources remote anglophones remontent surtout du CDI et du
@@ -451,7 +460,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 141 tests, aucun accès réseau
+pytest              # 152 tests, aucun accès réseau
 ruff check src tests
 ```
 

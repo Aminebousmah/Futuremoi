@@ -129,3 +129,28 @@ class TestConstructionDesRequetes:
         scraper = FranceTravailScraper(cfg, client=espion, source_cfg={"queries": ["data"]})
         list(scraper.fetch(["data"]))
         assert espion.appels[0]["publieeDepuis"] in PUBLIEE_DEPUIS_ALLOWED
+
+
+class TestAdzunaContrats:
+    """Adzuna n'expose que `contract` et `permanent`, souvent aucun des deux."""
+
+    @staticmethod
+    def _scraper(cfg):
+        from freelance_radar.scrapers.adzuna import AdzunaScraper
+        return AdzunaScraper(cfg, client=None, source_cfg={})
+
+    def test_contract_est_du_freelance(self, cfg):
+        from freelance_radar.models import ContractType
+        o = self._scraper(cfg)._parse({"title": "Data Analyst", "contract_type": "contract"})
+        assert o.contract == ContractType.FREELANCE
+
+    def test_permanent_est_du_cdi(self, cfg):
+        # Sans ce mapping, les CDI passaient en "unknown", que le pipeline garde.
+        from freelance_radar.models import ContractType
+        o = self._scraper(cfg)._parse({"title": "Data Analyst", "contract_type": "permanent"})
+        assert o.contract == ContractType.CDI
+
+    def test_absence_reste_indeterminee(self, cfg):
+        from freelance_radar.models import ContractType
+        o = self._scraper(cfg)._parse({"title": "Data Analyst"})
+        assert o.contract == ContractType.UNKNOWN

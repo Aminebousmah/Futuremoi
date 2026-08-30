@@ -28,6 +28,7 @@ from rich.table import Table
 from .config import Config, Profile, load_config, load_profile, profile_is_customized, project_root
 from .models import ApplicationStatus, JobOffer
 from .scrapers import available_scrapers
+from .secrets import install as install_redaction
 from .storage import Database
 
 # Les consoles Windows heritees sont en cp1252 : un caractere non mappable
@@ -64,6 +65,9 @@ def _setup_logging(verbose: bool) -> None:
         datefmt="[%X]",
         handlers=[RichHandler(console=console, show_path=False, rich_tracebacks=True)],
     )
+    # Adzuna exige ses cles en parametres d'URL, et httpx journalise l'URL
+    # complete : sans ce filtre, `-v` les afficherait en clair.
+    install_redaction()
 
 
 def _load(verbose: bool = False) -> tuple[Config, Profile, Database]:

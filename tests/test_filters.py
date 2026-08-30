@@ -260,3 +260,29 @@ class TestTermesDeRecherche:
                       "Chef de projet decisionnel",
                       "Data Analyst confirme"]:
             assert matches_keywords(make_offer(title=titre, skills=[]), cfg), titre
+
+
+class TestSourcesNationalesEtFormatsDeLieu:
+    """Les agregateurs francais n'ecrivent ni "France" ni "FR" dans leurs lieux.
+
+    Adzuna rend "8eme Arrondissement, Paris" ou "Merignac, Bordeaux". Comme il
+    est interroge avec country=fr, tous ses resultats sont francais : lui
+    appliquer la liste blanche rejetait 3 offres sur 4.
+    """
+
+    @pytest.mark.parametrize("lieu", [
+        "8eme Arrondissement, Paris",
+        "Merignac, Bordeaux",
+        "Herault, Occitanie",
+        "Villeurbanne, Lyon",
+    ])
+    def test_lieux_francais_sans_marqueur_pays(self, cfg, lieu):
+        cfg.filters.locations = ["france", "fr", "remote"]
+        cfg.filters.locations_skip_sources = ["adzuna"]
+        assert len(apply_filters([make_offer(source="adzuna", location=lieu)], cfg).kept) == 1
+
+    def test_une_source_non_listee_reste_filtree(self, cfg):
+        cfg.filters.locations = ["france", "fr", "remote"]
+        cfg.filters.locations_skip_sources = ["adzuna"]
+        offre = make_offer(source="remoteok", location="Merignac, Bordeaux")
+        assert "localisation" in apply_filters([offre], cfg).rejected
