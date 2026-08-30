@@ -22,6 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ..config import Config, Profile, project_root
 from ..models import Application, ApplicationStatus, JobOffer, RemotePolicy
 from ..pipeline.enrich import detect_role_family
+from .cv import adapter_cv, plan_canva
 from .llm import LLMWriter
 
 log = logging.getLogger(__name__)
@@ -288,11 +289,49 @@ Rends le JSON demande, en francais."""
         (folder / "offre.md").write_text(self._offer_sheet(offer), encoding="utf-8")
         (folder / "checklist.md").write_text(self._checklist(offer, ctx, rendered),
                                              encoding="utf-8")
+        self._ecrire_cv_adapte(folder, offer)
         (folder / "offre.json").write_text(
             json.dumps(offer.model_dump(mode="json"), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return folder
+
+    def _ecrire_cv_adapte(self, folder: Path, offer: JobOffer) -> None:
+        """Ecrit l'adaptation du CV : une note lisible et un plan applicable.
+
+        Le plan Canva n'est produit que si le profil renseigne `documents.canva_cv`.
+        Rien n'est envoye a Canva ici : ce module ne fait que calculer.
+        """
+        adaptation = adapter_cv(offer, self.profile)
+        lignes_md = [
+            f"# CV adapté — {offer.title}",
+            "",
+            "## Paragraphe de profil",
+            "",
+            adaptation.profil.texte(),
+            "",
+            "## Ordre des rubriques de compétences",
+            "",
+        ]
+        for i, r in enumerate(adaptation.rubriques, 1):
+            marque = " *(position fixe)*" if r.epinglee else ""
+            lignes_md.append(f"{i}. **{r.label}**{marque} — {r.texte()}")
+        lignes_md += [
+            "",
+            "---",
+            "",
+            "Seuls l'ordre des rubriques et le paragraphe de profil changent.",
+            "Les expériences, les chiffres et les dates sont laissés intacts.",
+        ]
+        (folder / "cv-adapte.md").write_text(
+            "\n".join(lignes_md) + "\n", encoding="utf-8"
+        )
+
+        plan = plan_canva(offer, self.profile, adaptation)
+        if plan:
+            (folder / "cv-canva.json").write_text(
+                json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
     @staticmethod
     def _offer_sheet(offer: JobOffer) -> str:

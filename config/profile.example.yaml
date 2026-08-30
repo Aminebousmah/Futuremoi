@@ -84,6 +84,13 @@ documents:
   # Chemins relatifs a la racine du projet, utilises par `radar apply`
   cv_pdf: "assets/CV.pdf"
   portfolio_pdf: ""
+  # Optionnel : cartographie d'un CV Canva, pour l'adaptation par offre.
+  # Les identifiants se relevent dans le design (voir docs/cv-canva.md).
+  # canva_cv:
+  #   design_id: "DAxxxxxxxxx"
+  #   page: "PBxxxxxxxx"
+  #   element_profil: "LBxxxxxxxx"
+  #   element_competences: "LBxxxxxxxx"
 
 preferences:
   # Secteurs/contextes a mettre en avant ou a eviter dans le scoring

@@ -86,3 +86,87 @@ class TestGeneration:
         offre = score_offer(make_offer(skills=["Python", "Kafka"]), profile, cfg)
         app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
         assert "Kafka" in app.gaps
+
+
+class TestAdaptationCV:
+    """Adaptation du CV : ordre des rubriques et paragraphe de profil."""
+
+    @staticmethod
+    def _offre_bi():
+        return make_offer(
+            title="Consultant Power BI senior",
+            description="Refonte des tableaux de bord décisionnels.",
+            skills=["Power BI", "Tableau", "Reporting"],
+        )
+
+    def test_la_rubrique_demandee_passe_en_tete(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+
+        a = adapter_cv(self._offre_bi(), profile)
+        mobiles = [r.label for r in a.rubriques if not r.epinglee]
+        assert mobiles[0] == "Data Visualisation & BI"
+
+    def test_les_rubriques_epinglees_ne_bougent_pas(self, cfg, profile):
+        from freelance_radar.apply.cv import RUBRIQUES_CV, adapter_cv
+
+        a = adapter_cv(self._offre_bi(), profile)
+        positions = [i for i, r in enumerate(a.rubriques) if r.epinglee]
+        attendues = [i for i, r in enumerate(RUBRIQUES_CV) if r.epinglee]
+        assert positions == attendues
+
+    def test_aucune_rubrique_perdue_ni_dupliquee(self, cfg, profile):
+        from freelance_radar.apply.cv import RUBRIQUES_CV, adapter_cv
+
+        a = adapter_cv(self._offre_bi(), profile)
+        assert sorted(r.label for r in a.rubriques) == sorted(r.label for r in RUBRIQUES_CV)
+
+    def test_pas_de_fuite_d_etat_entre_deux_offres(self, cfg, profile):
+        # RUBRIQUES_CV est partage : sans copie, le score d'une offre
+        # contaminerait le classement de la suivante.
+        from freelance_radar.apply.cv import adapter_cv
+
+        bi = [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques]
+        cloud = make_offer(title="Data Engineer", skills=["AWS", "Docker", "Airflow"])
+        adapter_cv(cloud, profile)
+        assert [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques] == bi
+
+    def test_le_profil_cite_les_competences_communes(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+        from freelance_radar.pipeline.score import score_offer
+
+        offre = score_offer(make_offer(skills=["Python", "SQL"]), profile, cfg)
+        a = adapter_cv(offre, profile)
+        assert "Python" in a.profil.texte()
+
+    def test_le_decoupage_du_profil_suit_la_maquette(self, cfg, profile):
+        # 5 zones : la mise en forme du CV (gras) tient a ce decoupage.
+        from freelance_radar.apply.cv import adapter_cv, zones_profil
+
+        zones = zones_profil(adapter_cv(self._offre_bi(), profile).profil)
+        assert len(zones) == 5
+        assert len(zones[0]) == 1                    # l'initiale est isolee
+        assert "".join(zones).startswith("Ingénieur")
+
+    def test_les_competences_forment_des_paires(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv, zones_competences
+
+        a = adapter_cv(self._offre_bi(), profile)
+        zones = zones_competences(a.rubriques)
+        assert len(zones) == 2 * len(a.rubriques)
+        # Les zones paires portent un intitule, les impaires les outils.
+        assert all(z.strip().endswith(":") for z in zones[::2])
+        assert not zones[0].startswith("\n") and zones[2].startswith("\n")
+
+    def test_plan_canva_absent_sans_cartographie(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv, plan_canva
+
+        profile.documents = {"cv_pdf": "x.pdf"}
+        a = adapter_cv(self._offre_bi(), profile)
+        assert plan_canva(self._offre_bi(), profile, a) is None
+
+    def test_le_dossier_contient_le_cv_adapte(self, cfg, profile):
+        app = ApplicationGenerator(cfg, profile).generate(self._offre_bi(),
+                                                          force_template=True)
+        contenu = (Path(app.file_path) / "cv-adapte.md").read_text(encoding="utf-8")
+        assert "Ordre des rubriques" in contenu
+        assert "laissés intacts" in contenu
