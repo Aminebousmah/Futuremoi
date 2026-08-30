@@ -51,10 +51,36 @@ Ouvrir `cv-adapte.md`, dupliquer le CV dans Canva, et coller les deux blocs à l
 main. Le collage dans les zones existantes conserve leur mise en forme. Compter
 une minute par candidature — le travail de réflexion, lui, est déjà fait.
 
-### La piste propre
+### Les champs d'autofill : posés, mais inexploitables sans forfait payant
 
-Canva dispose d'un mécanisme prévu pour ça : les **champs d'autofill**, qui
-remplacent du contenu en conservant le style de chaque champ. Le CV n'en déclare
-aucun aujourd'hui (`get-design-dataset` rend un objet vide). Les définir une fois
-sur le design — un champ pour le profil, un par rubrique — rendrait l'application
-automatique et sans perte de mise en forme.
+Canva dispose du mécanisme prévu pour ce cas : les **champs d'autofill**, qui
+remplacent le contenu en conservant le style de chaque champ.
+
+**Ce qui est fait.** Un modèle a été créé — une copie du CV, jamais l'original —
+et deux champs y sont déclarés :
+
+| Champ | Élément | Contenu |
+|---|---|---|
+| `profil` | paragraphe PROFIL | le texte réécrit pour l'offre |
+| `competences` | bloc COMPÉTENCES | les rubriques dans le bon ordre |
+
+Déclarer ces champs ne change rien visuellement. Vérification :
+`get-design-dataset` rend bien `{"competences": {"type": "text"}, "profil": {"type": "text"}}`.
+
+**Ce qui bloque.** Remplir ces champs par API suppose de publier le modèle en
+**brand template**, fonctionnalité réservée à Canva Pro / Teams / Enterprise :
+
+```
+This feature requires a Canva paid plan (such as Canva Pro, Canva Teams,
+or Canva Enterprise).
+```
+
+Le connecteur n'expose pas non plus d'outil d'autofill direct sur un design.
+
+**Conséquence.** Sur un compte gratuit, l'adaptation reste manuelle : ouvrir
+`cv-adapte.md`, dupliquer le CV, coller les deux blocs. Le travail de réflexion
+— quoi mettre en avant, comment formuler le profil — est déjà fait par l'outil.
+
+Avec un forfait payant, la chaîne devient automatique sans autre développement :
+le modèle est prêt, les champs sont nommés, et `cv-canva.json` contient déjà le
+contenu à injecter.
