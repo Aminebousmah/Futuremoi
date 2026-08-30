@@ -179,7 +179,7 @@ freelance-radar/
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 136 tests, sans accès réseau
+└── tests/                     # 138 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -280,7 +280,7 @@ avertissement explicite — les autres sources continuent normalement.
 | Clé | Défaut | Rôle |
 |---|---|---|
 | `type_contrat` | `LIB` | Code du référentiel. `LIB` = profession libérale, le seul qui corresponde vraiment au freelance. `""` pour tout voir, `"LIB,CDD"` pour élargir. |
-| `queries` | `[data]` | Mots-clés envoyés à l'API (`motsCles`) |
+| `queries` | `[data, donnees, decisionnel]` | Un terme **par requête** : l'API combine les mots-clés par un ET, donc `data,donnees` ne rend rien. `donnees` remonte presque le double de `data` — le catalogue est en français. |
 | `departement` | absent | Restreint à un département (`"75"`) |
 | `max_results` | `150` | Plafond imposé par l'API sur une pagination |
 
@@ -436,7 +436,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 136 tests, aucun accès réseau
+pytest              # 138 tests, aucun accès réseau
 ruff check src tests
 ```
 

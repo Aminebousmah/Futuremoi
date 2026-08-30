@@ -89,3 +89,43 @@ class TestConversion:
 
     def test_offre_sans_intitule_ignoree(self, scraper):
         assert scraper._parse({"id": "x"}) is None
+
+
+class ClientEspion:
+    """Client HTTP factice : enregistre les parametres, ne rend aucune offre."""
+
+    def __init__(self):
+        self.appels: list[dict] = []
+
+    def post_form(self, url, data, headers=None):
+        return {"access_token": "jeton-de-test"}
+
+    def get(self, url, params=None, headers=None, **kwargs):
+        self.appels.append(dict(params or {}))
+        return '{"resultats": []}'
+
+
+class TestConstructionDesRequetes:
+    def test_un_appel_par_mot_cle(self, cfg):
+        """`motsCles` combine les termes par un ET cote API.
+
+        Envoyer "data,donnees" ne rend aucune offre : les deux mots devraient
+        alors figurer dans la meme annonce. Il faut donc une requete par terme.
+        """
+        espion = ClientEspion()
+        scraper = FranceTravailScraper(
+            cfg, client=espion, source_cfg={"queries": ["data", "donnees"]}
+        )
+        scraper.client = espion
+        list(scraper.fetch(["data"]))
+
+        termes = [a.get("motsCles") for a in espion.appels]
+        assert termes == ["data", "donnees"]
+        assert not any("," in str(t) for t in termes)
+
+    def test_anciennete_toujours_dans_les_valeurs_autorisees(self, cfg):
+        espion = ClientEspion()
+        cfg.filters.max_age_days = 30          # valeur refusee telle quelle par l'API
+        scraper = FranceTravailScraper(cfg, client=espion, source_cfg={"queries": ["data"]})
+        list(scraper.fetch(["data"]))
+        assert espion.appels[0]["publieeDepuis"] in PUBLIEE_DEPUIS_ALLOWED

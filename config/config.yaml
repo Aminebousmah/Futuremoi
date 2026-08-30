@@ -156,7 +156,9 @@ sources:
   francetravail:
     enabled: true         # necessite FRANCE_TRAVAIL_CLIENT_ID / _SECRET dans .env
     kind: api
-    queries: [data]
+    # Un terme par requete : l'API combine les mots-cles par un ET.
+    # "donnees" rend presque le double de "data" — le catalogue est en francais.
+    queries: [data, donnees, decisionnel]
     # Code du referentiel France Travail. LIB = profession liberale, le seul
     # code qui corresponde vraiment a du freelance ; MIS est de l'interim.
     # Mettre "" pour tout voir, ou "LIB,CDD" pour elargir.

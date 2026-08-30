@@ -119,8 +119,11 @@ class FranceTravailScraper(BaseScraper):
         token = self._token()
         headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
+        # `motsCles` combine les termes par un ET, pas par un OU : envoyer
+        # "data,donnees" ne rend rien du tout. On interroge donc un terme a la
+        # fois et la deduplication du pipeline fusionne les resultats.
+        requetes = self._cfg("queries") or ["data"]
         base_params: dict[str, object] = {
-            "motsCles": ",".join(self._cfg("queries") or ["data"]),
             "publieeDepuis": snap_publiee_depuis(self.cfg.filters.max_age_days),
         }
         # Par defaut LIB : le catalogue France Travail est surtout salarie, et
@@ -134,15 +137,18 @@ class FranceTravailScraper(BaseScraper):
             base_params["departement"] = departement
 
         max_results = min(int(self._cfg("max_results", MAX_RESULTS)), MAX_RESULTS)
-        for start in range(0, max_results, PAGE_SIZE):
-            end = min(start + PAGE_SIZE - 1, max_results - 1)
-            results = self._search(headers, {**base_params, "range": f"{start}-{end}"})
-            if not results:
-                break
-            for raw in results:
-                offer = self._parse(raw)
-                if offer:
-                    yield offer
+        for requete in requetes:
+            for start in range(0, max_results, PAGE_SIZE):
+                end = min(start + PAGE_SIZE - 1, max_results - 1)
+                results = self._search(headers, {
+                    **base_params, "motsCles": requete, "range": f"{start}-{end}",
+                })
+                if not results:
+                    break
+                for raw in results:
+                    offer = self._parse(raw)
+                    if offer:
+                        yield offer
 
     def _search(self, headers: dict[str, str], params: dict[str, object]) -> list[dict]:
         """Un appel de recherche. Rend [] pour signaler la fin de la pagination."""
