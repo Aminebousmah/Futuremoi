@@ -405,6 +405,10 @@ class TestCompetencesAttendues:
 class TestPortageSalarial:
     """Le statut ne doit pas etre code en dur : il depend du profil.
 
+    Le SIRET employe ici est fictif. Le vrai vit dans ,
+    hors depot : une donnee reelle n'a rien a faire dans une fixture, meme
+    publique par nature — le depot est ouvert.
+
     Sans SIRET propre, c'est celui de la societe de portage que reclament les
     formulaires et les contrats -- mais il ne doit jamais etre presente comme
     une immatriculation personnelle.
@@ -415,21 +419,21 @@ class TestPortageSalarial:
         assert profile.statut_juridique == "Freelance / independant"
 
     def test_le_portage_change_le_statut(self, profile):
-        profile.portage = {"siret": "93520225900013"}
+        profile.portage = {"siret": "12345678900017"}
         assert profile.statut_juridique == "Portage salarial"
 
     def test_la_societe_est_nommee_si_connue(self, profile):
-        profile.portage = {"siret": "93520225900013", "societe": "Ma Societe"}
+        profile.portage = {"siret": "12345678900017", "societe": "Ma Societe"}
         assert profile.statut_juridique == "Portage salarial (Ma Societe)"
 
     def test_le_siret_du_portage_sert_de_repli(self, profile):
         profile.identity = {**profile.identity, "siret": ""}
-        profile.portage = {"siret": "93520225900013"}
-        assert profile.siret == "93520225900013"
+        profile.portage = {"siret": "12345678900017"}
+        assert profile.siret == "12345678900017"
 
     def test_une_immatriculation_propre_a_la_priorite(self, profile):
         profile.identity = {**profile.identity, "siret": "11111111100011"}
-        profile.portage = {"siret": "93520225900013"}
+        profile.portage = {"siret": "12345678900017"}
         assert profile.siret == "11111111100011"
 
     def test_la_fiche_annonce_l_origine_du_siret(self, cfg, profile):
@@ -437,10 +441,10 @@ class TestPortageSalarial:
         from freelance_radar.apply import ApplicationGenerator
 
         profile.identity = {**profile.identity, "siret": ""}
-        profile.portage = {"siret": "93520225900013"}
+        profile.portage = {"siret": "12345678900017"}
         fiche = ApplicationGenerator(cfg, profile).fiche_candidature(make_offer())
         champs = {c.cle: c for c in fiche.tous()}
-        assert champs["siret"].valeur == "93520225900013"
+        assert champs["siret"].valeur == "12345678900017"
         assert "portage" in champs["siret"].aide.lower()
         assert champs["statut"].valeur == "Portage salarial"
 
@@ -448,9 +452,9 @@ class TestPortageSalarial:
         from freelance_radar.web.bookmarklet import valeurs_profil
 
         profile.identity = {**profile.identity, "siret": ""}
-        profile.portage = {"siret": "93520225900013"}
+        profile.portage = {"siret": "12345678900017"}
         v = valeurs_profil(profile)
-        assert v["siret"] == "93520225900013"
+        assert v["siret"] == "12345678900017"
         assert v["statut"] == "Portage salarial"
 
 
