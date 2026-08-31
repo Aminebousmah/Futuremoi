@@ -89,6 +89,15 @@ ALIAS: dict[str, list[str]] = {
     "Mesures et KPI (DAX)": ["dax", "mesure", "kpi"],
     "Spark / PySpark": ["spark", "pyspark"],
     "ETL / ELT": ["etl", "elt"],
+    # Sans alias, un intitule a slash n'est cherche que tel quel : une annonce
+    # qui dit "Matplotlib" ne matcherait pas "Matplotlib / Seaborn".
+    "Matplotlib / Seaborn": ["matplotlib", "seaborn"],
+    "Zapier / Make": ["zapier", "make.com"],
+    # "fabric" seul est ambigu (c'est aussi une bibliotheque Python).
+    "Microsoft Fabric": ["microsoft fabric", "ms fabric"],
+    "Dataiku": ["dataiku", "dataiku dss"],
+    "Hadoop": ["hadoop", "hdfs"],
+    "Lakehouse": ["lakehouse", "lake house"],
     "Change Data Capture (CDC)": ["cdc", "change data capture"],
     "LLM (GPT, Claude)": ["llm", "gpt", "genai", "ia generative"],
     "RAG (retrieval augmented generation)": ["rag", "retrieval augmented"],
