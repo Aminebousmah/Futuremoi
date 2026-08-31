@@ -88,7 +88,7 @@ class TestDocuments:
         client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})
         r = client.get(f"/document/{offre_en_base.id}/cv-adapte.md")
         assert r.status_code == 200
-        assert "Ordre des rubriques" in r.text
+        assert "composées pour cette offre" in r.text
 
     def test_nom_hors_liste_refuse(self, client, offre_en_base):
         client.post(f"/offre/{offre_en_base.id}/candidature", data={"moteur": "template"})

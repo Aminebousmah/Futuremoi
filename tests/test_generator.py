@@ -217,5 +217,5 @@ class TestAdaptationCV:
         app = ApplicationGenerator(cfg, profile).generate(self._offre_bi(),
                                                           force_template=True)
         contenu = (Path(app.file_path) / "cv-adapte.md").read_text(encoding="utf-8")
-        assert "Ordre des rubriques" in contenu
-        assert "laissés intacts" in contenu
+        assert "composées pour cette offre" in contenu
+        assert "jamais touchés" in contenu
