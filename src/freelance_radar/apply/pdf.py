@@ -359,13 +359,17 @@ def _competences(pdf: CVPdf, adaptation: AdaptationCV) -> None:
 #  Point d'entrée
 # --------------------------------------------------------------------------- #
 def generer_cv(offer: JobOffer, profile: Profile, destination: Path,
-               photo: Path | None = None) -> Path:
+               photo: Path | None = None,
+               imposees: list[str] | None = None) -> Path:
     """Écrit le CV adapté à `offer` et rend le chemin du PDF.
 
     Le contenu adapté (paragraphe de profil et rubriques de compétences) vient
     de `cv.adapter_cv` : ce module ne décide de rien, il met en page.
+
+    `imposees` force des compétences en tête, pour les cas où vous savez
+    qu'un outil comptera alors que l'annonce ne le nomme pas.
     """
-    adaptation = adapter_cv(offer, profile)
+    adaptation = adapter_cv(offer, profile, imposees)
     if photo is None:
         chemin = (profile.documents or {}).get("photo")
         photo = Path(chemin) if chemin else None
@@ -377,9 +381,9 @@ def generer_cv(offer: JobOffer, profile: Profile, destination: Path,
     _profil(pdf, adaptation, profile)
     pdf.filet()
     # Les puces et l'ordre des projets dependent de l'offre : cf. apply.parcours.
-    _experiences(pdf, composer_experiences(offer, profile))
+    _experiences(pdf, composer_experiences(offer, profile, imposees))
     _formation(pdf, profile)
-    _projets(pdf, composer_projets(offer, profile))
+    _projets(pdf, composer_projets(offer, profile, imposees))
     _competences(pdf, adaptation)
 
     destination.parent.mkdir(parents=True, exist_ok=True)

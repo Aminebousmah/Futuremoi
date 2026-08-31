@@ -311,12 +311,17 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         return RedirectResponse("/outils?lettre=ok", status_code=303)
 
     @app.post("/offre/{offer_id}/cv")
-    def regenerer_cv(offer_id: str) -> RedirectResponse:
+    def regenerer_cv(offer_id: str, avec: str = Form("")) -> RedirectResponse:
         """Rejoue la seule composition du CV.
 
         Utile apres avoir touche a `profile.yaml` : inutile de regenerer la
         lettre et l'email, qui n'ont pas bouge. Hors ligne, rien n'est facture.
+
+        `avec` impose des competences, separees par des virgules : elles
+        passent devant quoi qu'en dise l'annonce, pour les cas ou vous savez
+        qu'un outil comptera alors que le texte ne le nomme pas.
         """
+        imposees = [c.strip() for c in avec.split(",") if c.strip()]
         base = db()
         try:
             offre = base.get_offer(offer_id)
@@ -327,7 +332,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
                 f"-{slugify(offre.title)}"
             )
             dossier.mkdir(parents=True, exist_ok=True)
-            generer_cv(offre, profile, dossier / "cv.pdf")
+            generer_cv(offre, profile, dossier / "cv.pdf", imposees=imposees)
         finally:
             base.close()
         return RedirectResponse(f"/document/{offer_id}/cv.pdf", status_code=303)

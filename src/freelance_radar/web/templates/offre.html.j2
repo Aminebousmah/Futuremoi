@@ -100,12 +100,15 @@
     </p>
     {# Recomposer le seul CV : utile apres avoir touche a profile.yaml, sans
        refaire la lettre et l'email qui n'ont pas bouge. #}
-    <form method="post" action="/offre/{{ offre.id }}/cv" class="compact">
+    <form method="post" action="/offre/{{ offre.id }}/cv" class="enligne">
+      <input type="text" name="avec" placeholder="Imposer : DAX, Power Query…"
+             style="flex:1;min-width:14rem">
       <button type="submit">Régénérer le CV</button>
-      <span class="sub" style="font-size:.8rem">
-        après modification de votre profil — hors ligne
-      </span>
     </form>
+    <p class="bas" style="font-size:.8rem;margin:.4rem 0 0">
+      Hors ligne. Les compétences imposées passent devant, même si l'annonce
+      ne les nomme pas — séparez-les par des virgules.
+    </p>
     <p class="bas" style="font-size:.8rem">Dossier : <code>{{ candidature.file_path }}</code></p>
   {% else %}
     <p class="sub" style="margin:.5rem 0">Aucun brouillon pour cette offre.</p>

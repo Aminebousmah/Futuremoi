@@ -339,6 +339,10 @@ def apply(
     limit: int = typer.Option(10, "--limit", "-n", help="Plafond en mode --all."),
     template_only: bool = typer.Option(
         False, "--template", help="Forcer les templates (sans LLM)."),
+    avec: Optional[list[str]] = typer.Option(
+        None, "--avec",
+        help="Imposer une competence dans le CV, repetable "
+             "(ex : --avec DAX --avec \"Power Query\")."),
     use_llm: bool = typer.Option(
         False, "--llm",
         help="Autoriser un appel FACTURE a l'API Anthropic pour cette commande."),
@@ -399,7 +403,8 @@ def apply(
     for offer in targets:
         with console.status(f"Redaction — {offer.title[:50]}..."):
             application = generator.generate(
-                offer, force_template=template_only, consent_llm=consent)
+                offer, force_template=template_only, consent_llm=consent,
+                imposees=list(avec or []))
             db.save_application(application)
         console.print(
             f"[green]OK[/] [{offer.score:.0f}] {offer.title[:55]}\n"

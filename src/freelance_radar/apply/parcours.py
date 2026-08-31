@@ -10,7 +10,16 @@ Ce que fait ce module
   * il classe les projets entre eux, pour que le plus proche passe devant ;
   * il choisit, parmi les formulations déclarées d'une même puce, celle qui
     parle le vocabulaire de l'annonce ;
-  * il fait remonter les puces optionnelles quand l'annonce les réclame.
+  * il fait remonter les puces optionnelles quand l'annonce les réclame ;
+  * il épingle en tête la puce qui dit ce qu'EST le projet.
+
+Épingler la nature d'un projet
+------------------------------
+Un projet dont les trois puces partent vers l'offre devient illisible : on ne
+sait plus ce qu'il fait. La puce marquée `nature: true` reste donc en
+première position quel que soit son score, et les suivantes se réordonnent
+librement. Le lecteur comprend le projet, puis voit ce qui le rapproche du
+poste.
 
 Ce qu'il ne fait pas, et ne fera pas
 ------------------------------------
@@ -65,6 +74,7 @@ class Puce:
     outils: list[str] = field(default_factory=list)
     optionnelle: bool = False
     reformulee: bool = False      # une variante a ete preferee a l'originale
+    nature: bool = False          # dit ce qu'EST le bloc : reste en tete
 
 
 @dataclass
@@ -99,10 +109,11 @@ def competences_citees(texte: str, profile: Profile) -> list[str]:
     return trouvees
 
 
-def _scores_offre(offer: JobOffer, profile: Profile) -> dict[str, float]:
-    """Ce que l'offre réclame, par compétence."""
-    return {competence: score
-            for _categorie, competence, score in classer_competences(offer, profile)}
+def _scores_offre(offer: JobOffer, profile: Profile,
+                  imposees: list[str] | None = None) -> dict[str, float]:
+    """Ce que l'offre réclame, par compétence, `imposees` comprises."""
+    return {competence: score for _categorie, competence, score
+            in classer_competences(offer, profile, imposees)}
 
 
 def _noter_texte(texte: str, profile: Profile,
@@ -135,17 +146,20 @@ def _noter(brut: object, profile: Profile, demande: dict[str, float]) -> Puce:
             meilleur_score, meilleurs_outils = score, outils
             meilleur_texte, reformule = variante, True
 
+    nature = bool(isinstance(brut, dict) and brut.get("nature"))
     return Puce(texte=meilleur_texte, score=meilleur_score,
-                outils=meilleurs_outils, reformulee=reformule)
+                outils=meilleurs_outils, reformulee=reformule, nature=nature)
 
 
 def _ordonner(puces: list[Puce]) -> list[Puce]:
-    """Tri stable : à score égal, l'ordre d'origine est conservé.
+    """Tri stable, la puce de nature d'abord.
 
     Sans stabilité, deux générations successives sur la même offre pourraient
-    rendre des CV différents, ce qui rend la relecture pénible.
+    rendre des CV différents, ce qui rend la relecture pénible. Et sans
+    l'épingle, un projet dont toutes les puces penchent vers l'offre ne dit
+    plus ce qu'il est.
     """
-    return sorted(puces, key=lambda p: -p.score)
+    return sorted(puces, key=lambda p: (not p.nature, -p.score))
 
 
 def _composer_bloc(brut: dict, profile: Profile, demande: dict[str, float],
@@ -170,27 +184,29 @@ def _composer_bloc(brut: dict, profile: Profile, demande: dict[str, float],
     )
 
 
-def composer_experiences(offer: JobOffer, profile: Profile) -> list[BlocParcours]:
+def composer_experiences(offer: JobOffer, profile: Profile,
+                         imposees: list[str] | None = None) -> list[BlocParcours]:
     """Expériences dans l'ordre chronologique, puces réordonnées.
 
     L'ordre des postes ne bouge pas : un CV se lit du plus récent au plus
     ancien, et bousculer cette convention pour un gain de pertinence
     ferait douter de la chronologie.
     """
-    demande = _scores_offre(offer, profile)
+    demande = _scores_offre(offer, profile, imposees)
     brutes = (profile.cv or {}).get("parcours", {}).get("experiences") or []
     return [_composer_bloc(e, profile, demande,
                            titre_cle="poste", sous_titre_cle="client")
             for e in brutes]
 
 
-def composer_projets(offer: JobOffer, profile: Profile) -> list[BlocParcours]:
+def composer_projets(offer: JobOffer, profile: Profile,
+                     imposees: list[str] | None = None) -> list[BlocParcours]:
     """Projets classés par proximité avec l'offre, puces réordonnées.
 
     Les projets, eux, n'ont pas de chronologie qui tienne : le plus proche
     de la mission passe devant.
     """
-    demande = _scores_offre(offer, profile)
+    demande = _scores_offre(offer, profile, imposees)
     brutes = (profile.cv or {}).get("parcours", {}).get("projets") or []
     blocs = [_composer_bloc(p, profile, demande,
                             titre_cle="nom", sous_titre_cle="sous_titre")
