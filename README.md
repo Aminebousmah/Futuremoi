@@ -269,6 +269,7 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 | **Free-Work** | HTML + JSON-LD | non | Missions freelance IT en France |
 | **Freelance-Informatique** | HTML + JSON-LD | non | Missions freelance IT France, toutes régions |
 | **Mindquest** | Sitemap + JSON-LD | non | Missions freelance IT/finance, très Île-de-France |
+| **Collective.work** | HTML + données embarquées | non | Missions freelance, **descriptions complètes** |
 | **France Travail** | API officielle | oui | Toute la France, y compris hors métropoles |
 | **Jobicy** | API publique | non | Remote Europe/monde, filtrable par industrie |
 | **Himalayas** | API publique | non | Remote worldwide |
@@ -277,7 +278,7 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 | **Remotive** | API publique | non | Remote worldwide |
 | **Remote OK** | API publique | non | Remote worldwide |
 
-Dix sources actives sans aucune configuration, hormis France Travail qui demande
+Onze sources actives sans aucune configuration, hormis France Travail qui demande
 des clés gratuites (voir plus bas).
 
 Adzuna nécessite des clés gratuites ([inscription](https://developer.adzuna.com)) :
@@ -359,6 +360,35 @@ Deux particularités de la source, toutes deux gérées :
 - `baseSalary` est inexploitable (une fiche annonce 50 000 €/jour, en réalité un
   salaire annuel mal étiqueté) et `employmentType` vaut `FULL_TIME` sur une place
   de marché freelance. Le TJM se lit dans la description, le contrat est forcé.
+
+### Collective.work
+
+Cette source existe pour une raison précise : elle publiait déjà 31 des offres
+que le radar recevait d'Adzuna, mais **tronquées à 500 caractères**. Un cas
+mesuré : une annonce exigeant « Microsoft Fabric souhaitable » dont la mention
+tombait hors de l'extrait, donc absente du CV composé.
+
+Le texte complet est hors de portée côté Adzuna — leur API n'a pas de champ
+plus long, et leur site répond 403 à tout client automatisé. L'éditeur, lui,
+publie ses missions en clair.
+
+| | Adzuna | Collective.work |
+|---|---|---|
+| Description (médiane) | 500 car. | **1886 car.** |
+| Tronquées | 118 / 118 | **1 / 150** |
+| Télétravail connu | 13 / 118 | **150 / 150** |
+| TJM connu | 15 / 118 | **53 / 150** |
+
+`workPreferences` déclare le rythme (HYBRID / ON_SITE / REMOTE) au lieu qu'il
+faille le deviner dans le texte, et `budgetBrief` porte souvent le TJM.
+
+Les missions sont rendues côté serveur dans `__NEXT_DATA__` : aucune API
+privée n'est sollicitée, aucune authentification contournée. `robots.txt`
+n'interdit que `/style-guide`.
+
+| Clé | Défaut | Rôle |
+|---|---|---|
+| `max_pages` | `5` | 30 missions par page, sur 6360 au catalogue |
 
 ### Ce que l'outil ne scrape pas
 
