@@ -123,6 +123,57 @@ ROLE_FAMILIES: dict[str, list[str]] = {
                      "product owner data", "data steward"],
 }
 
+# Ce qu'un intitule de poste implique, meme quand l'annonce ne detaille rien.
+#
+# Raison d'etre : beaucoup de sources tronquent leur texte -- l'API Adzuna rend
+# 500 caracteres. Sur une annonce "Data engineer" ainsi coupee, aucun outil
+# n'est cite, toutes les competences tombent a zero, et la composition du CV
+# se rabat sur le haut de l'inventaire. Le titre, lui, dit clairement le
+# metier : autant s'en servir.
+#
+# Les intitules reprennent ceux de `profile.cv.competences`. Un nom qui n'y
+# figure pas ne declenche simplement rien : la table se degrade, elle ne casse
+# pas. `test_cv.py` verifie qu'elle reste majoritairement branchee.
+COMPETENCES_ATTENDUES: dict[str, list[str]] = {
+    "data_engineer": [
+        "SQL", "Python", "dbt", "Airflow", "Spark / PySpark", "Snowflake",
+        "BigQuery", "Databricks", "ETL / ELT", "Azure Data Factory", "CI/CD",
+    ],
+    "analytics_engineer": [
+        "dbt", "SQL", "Modélisation dimensionnelle", "Modèle en étoile (Kimball)",
+        "Snowflake", "BigQuery", "Qualité des données", "Git",
+    ],
+    "data_analyst": [
+        "SQL", "Power BI", "Excel (Power Query, TCD, VBA)", "Python", "Tableau",
+        "Analyse métier", "KPI et tableaux de bord", "Self-service BI",
+    ],
+    "bi_engineer": [
+        "Power BI", "DAX", "Power Query (langage M)", "SQL", "Tableau",
+        "Modèle en étoile (Kimball)", "Modèle sémantique",
+        "SAP BusinessObjects (BI4)",
+    ],
+    "data_scientist": [
+        "Python", "Scikit-learn", "Statistiques appliquées", "SQL", "XGBoost",
+        "Séries temporelles", "MLflow", "MLOps", "Clustering",
+        "Modèles de scoring",
+    ],
+    "data_architect": [
+        "Modèle en étoile (Kimball)", "Modélisation dimensionnelle", "Data Vault",
+        "Gouvernance des données", "Snowflake", "Azure", "Data lineage",
+        "Dictionnaire de données",
+    ],
+    "data_manager": [
+        "Gouvernance des données", "Qualité des données", "Analyse métier",
+        "MDM / données de référence", "Cadrage du besoin", "Agile / Scrum",
+        "Gestion de projet", "Documentation technique",
+    ],
+}
+
+
+def competences_attendues(famille: str) -> list[str]:
+    """Competences qu'un intitule de poste laisse attendre, sans les citer."""
+    return list(COMPETENCES_ATTENDUES.get(famille, []))
+
 
 # Competences qui signent reellement un poste data. Le reste de la taxonomie
 # (Python, Java, Docker, CI/CD, AWS, SQL...) est partage avec le developpement
