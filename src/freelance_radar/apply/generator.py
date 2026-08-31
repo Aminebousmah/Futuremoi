@@ -447,6 +447,12 @@ Rends le JSON demande, en francais."""
             f"# Checklist avant envoi — {offer.title}",
             "",
             "## À vérifier",
+            *(["- [ ] **Description tronquée par la source** — seuls "
+               f"{len(offer.description)} caractères nous sont livrés. "
+               "Ouvrez l'annonce complète : une compétence exigée peut être "
+               "dans la partie invisible. Pour l'ajouter au CV : "
+               "`radar apply <id> --avec \"Nom de l'outil\"`"]
+              if offer.description_tronquee else []),
             "- [ ] Nom de l'interlocuteur et de l'entreprise corrects",
             "- [ ] Intitulé exact de la mission repris tel quel",
             f"- [ ] TJM annoncé cohérent : **{ctx['proposed_rate']} EUR HT/j**"

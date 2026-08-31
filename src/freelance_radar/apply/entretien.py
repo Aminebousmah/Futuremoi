@@ -466,6 +466,13 @@ def _vigilance(offer: JobOffer, profile: Profile, cfg: Config,
             "conditions de renouvellement et le préavis."
         )
 
+    if offer.description_tronquee:
+        points.append(
+            "Annonce tronquée par la source : cette fiche ne couvre que le "
+            "tiers visible. Relisez l'annonce complète avant l'entretien — les "
+            "compétences exigées y sont souvent listées à la fin."
+        )
+
     points.append(
         "Cet outil n'envoie rien : vérifier que la candidature est bien partie "
         "avant de préparer l'entretien."

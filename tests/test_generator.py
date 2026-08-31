@@ -452,3 +452,42 @@ class TestPortageSalarial:
         v = valeurs_profil(profile)
         assert v["siret"] == "93520225900013"
         assert v["statut"] == "Portage salarial"
+
+
+class TestDescriptionTronquee:
+    """Une annonce coupee doit le dire, pas se faire passer pour complete.
+
+    Cas mesure : l'offre Consultant Power BI exige "Microsoft Fabric
+    souhaitable", mention absente des 492 caracteres livres par l'API Adzuna.
+    Le CV compose ne pouvait donc pas la reprendre, et rien ne le signalait.
+    """
+
+    def test_detection_sur_l_ellipse(self):
+        assert make_offer(description="Mission data…").description_tronquee is True
+
+    def test_texte_complet_non_signale(self):
+        assert make_offer(description="Mission data.").description_tronquee is False
+
+    def test_la_checklist_avertit(self, cfg, profile):
+        from freelance_radar.apply import ApplicationGenerator
+
+        offre = make_offer(description="Concevoir des dashboards Power BI…")
+        app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
+        checklist = (Path(app.file_path) / "checklist.md").read_text(encoding="utf-8")
+        assert "tronquée" in checklist
+        assert "--avec" in checklist
+
+    def test_pas_d_avertissement_si_le_texte_est_complet(self, cfg, profile):
+        from freelance_radar.apply import ApplicationGenerator
+
+        offre = make_offer(description="Concevoir des dashboards Power BI.")
+        app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
+        checklist = (Path(app.file_path) / "checklist.md").read_text(encoding="utf-8")
+        assert "tronquée" not in checklist
+
+    def test_la_fiche_d_entretien_avertit(self, cfg, profile):
+        from freelance_radar.apply.entretien import construire_fiche, rendre_markdown
+
+        offre = make_offer(description="Mission Power BI, modélisation…")
+        texte = rendre_markdown(construire_fiche(offre, profile, cfg))
+        assert "tronquée" in texte

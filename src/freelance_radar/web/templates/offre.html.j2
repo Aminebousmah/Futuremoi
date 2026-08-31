@@ -39,6 +39,21 @@
   </table>
 </div>
 
+{% if offre.description_tronquee %}
+{# L'angle mort le plus couteux : une competence exigee peut se trouver dans
+   la partie que la source ne livre pas. Mieux vaut le dire que laisser
+   croire a une lecture complete. #}
+<div class="panneau avert">
+  <strong>Annonce tronquée par la source</strong>
+  <p class="sub" style="margin:.5rem 0 0">
+    Seuls {{ offre.description|length }} caractères nous sont livrés — le reste
+    n'est pas accessible. Une compétence exigée peut s'y trouver :
+    <a href="{{ offre.url }}" target="_blank" rel="noopener">lisez l'annonce
+    complète</a>, puis imposez l'outil manquant dans le champ « Imposer » du CV.
+  </p>
+</div>
+{% endif %}
+
 {% if offre.score_detail %}
 <div class="panneau">
   <strong>Détail du score</strong>
