@@ -407,3 +407,46 @@ class TestFicheEntretien:
         r = client.post(f"/offre/{offre_en_base.id}/entretien",
                         follow_redirects=False)
         assert r.status_code == 303
+
+
+class TestRegenerationCV:
+    """Le CV doit pouvoir etre rejoue seul, apres edition du profil."""
+
+    def _avec_candidature(self, client, offre):
+        client.post(f"/offre/{offre.id}/candidature", data={"moteur": "template"})
+
+    def test_bouton_present(self, client, offre_en_base):
+        self._avec_candidature(client, offre_en_base)
+        page = client.get(f"/offre/{offre_en_base.id}").text
+        assert f"/offre/{offre_en_base.id}/cv" in page
+        assert "Régénérer le CV" in page
+
+    def test_regeneration_ecrit_le_pdf(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/cv", follow_redirects=False)
+        assert r.status_code == 303
+        pdfs = list(cfg.applications_path.glob("*/cv.pdf"))
+        if not pdfs:
+            pytest.skip("aucune police système compatible sur cette machine")
+        assert pdfs[0].read_bytes().startswith(b"%PDF-")
+
+    def test_redirige_vers_le_pdf(self, client, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/cv", follow_redirects=False)
+        assert r.headers["location"].endswith("/cv.pdf")
+
+    def test_offre_inconnue(self, client):
+        assert client.post("/offre/inconnue/cv").status_code == 404
+
+    def test_le_pdf_est_servi_en_binaire(self, client, offre_en_base):
+        """Un PDF ne doit pas passer par le gabarit de lecture, qui attend du texte."""
+        self._avec_candidature(client, offre_en_base)
+        client.post(f"/offre/{offre_en_base.id}/cv")
+        r = client.get(f"/document/{offre_en_base.id}/cv.pdf")
+        if r.status_code == 404:
+            pytest.skip("aucune police système compatible")
+        assert r.headers["content-type"] == "application/pdf"
+        assert r.content.startswith(b"%PDF-")
+
+    def test_traversee_toujours_bloquee(self, client, offre_en_base):
+        self._avec_candidature(client, offre_en_base)
+        r = client.get(f"/document/{offre_en_base.id}/../../../.env")
+        assert r.status_code == 404

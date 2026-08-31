@@ -249,7 +249,8 @@ Rends le JSON demande, en francais."""
     #  Point d'entree
     # ------------------------------------------------------------------ #
     def generate(self, offer: JobOffer, *, force_template: bool = False,
-                 consent_llm: bool = False) -> Application:
+                 consent_llm: bool = False,
+                 imposees: list[str] | None = None) -> Application:
         """Produit le dossier de candidature.
 
         `consent_llm` est le seul chemin vers une requete facturee. Il n'a pas
@@ -265,7 +266,7 @@ Rends le JSON demande, en francais."""
         if rendered is None:
             rendered = self._render_templates(ctx)
 
-        folder = self._write_files(offer, ctx, rendered)
+        folder = self._write_files(offer, ctx, rendered, imposees)
 
         return Application(
             offer_id=offer.id,
@@ -302,7 +303,8 @@ Rends le JSON demande, en francais."""
         )
 
     def _write_files(self, offer: JobOffer, ctx: dict[str, Any],
-                     rendered: dict[str, Any]) -> Path:
+                     rendered: dict[str, Any],
+                     imposees: list[str] | None = None) -> Path:
         """Ecrit le dossier de candidature. Rend le chemin du dossier."""
         root = self.cfg.applications_path
         name = (f"{int(offer.score):03d}-{slugify(offer.company or offer.source)}"
@@ -320,20 +322,21 @@ Rends le JSON demande, en francais."""
         (folder / "offre.md").write_text(self._offer_sheet(offer), encoding="utf-8")
         (folder / "checklist.md").write_text(self._checklist(offer, ctx, rendered),
                                              encoding="utf-8")
-        self._ecrire_cv_adapte(folder, offer)
+        self._ecrire_cv_adapte(folder, offer, imposees)
         (folder / "offre.json").write_text(
             json.dumps(offer.model_dump(mode="json"), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return folder
 
-    def _ecrire_cv_adapte(self, folder: Path, offer: JobOffer) -> None:
+    def _ecrire_cv_adapte(self, folder: Path, offer: JobOffer,
+                          imposees: list[str] | None = None) -> None:
         """Ecrit l'adaptation du CV : une note lisible et un plan applicable.
 
         Le plan Canva n'est produit que si le profil renseigne `documents.canva_cv`.
         Rien n'est envoye a Canva ici : ce module ne fait que calculer.
         """
-        adaptation = adapter_cv(offer, self.profile)
+        adaptation = adapter_cv(offer, self.profile, imposees)
         lignes_md = [
             f"# CV adapté — {offer.title}",
             "",
@@ -347,6 +350,21 @@ Rends le JSON demande, en francais."""
         for i, r in enumerate(adaptation.rubriques, 1):
             marque = " *(position fixe)*" if r.epinglee else ""
             lignes_md.append(f"{i}. **{r.label}**{marque} — {r.texte()}")
+        from .parcours import composer_experiences, composer_projets, resume_adaptation
+
+        experiences = composer_experiences(offer, self.profile, imposees)
+        projets = composer_projets(offer, self.profile, imposees)
+        mouvements = resume_adaptation(experiences, projets)
+        if mouvements:
+            lignes_md += ["", "## Parcours : ce qui a été mis en avant", ""]
+            lignes_md += mouvements
+            lignes_md += [
+                "",
+                "Les puces sont **réordonnées**, jamais réécrites. Une compétence",
+                "exigée que votre parcours ne porte pas reste un écart : la fiche",
+                "d'entretien la nomme au lieu de la maquiller.",
+            ]
+
         lignes_md += [
             "",
             "---",
@@ -374,7 +392,8 @@ Rends le JSON demande, en francais."""
         try:
             from .pdf import generer_cv
 
-            generer_cv(offer, self.profile, folder / "cv.pdf")
+            generer_cv(offer, self.profile, folder / "cv.pdf",
+                       imposees=imposees)
         except Exception as exc:
             log.warning("CV PDF non genere (%s) : la note cv-adapte.md reste "
                         "disponible.", exc)

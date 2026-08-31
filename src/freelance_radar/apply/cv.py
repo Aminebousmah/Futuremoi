@@ -79,6 +79,9 @@ TRANSVERSES_RETENUES = 4
 # Bonus d'une competence attendue par le metier mais absente du texte.
 # Sous la mention explicite (1.5 minimum) : le titre suggere, il n'affirme pas.
 BONUS_ATTENDUE = 1.2
+# Bonus d'une competence forcee a la main. Au-dessus de toute mention
+# automatique : quand vous imposez un outil, il doit passer devant.
+BONUS_IMPOSEE = 20.0
 
 # Formulations alternatives d'une meme competence, cote annonce. On ne liste
 # que celles qu'une recherche de sous-chaine ne trouverait pas seule.
@@ -209,10 +212,16 @@ def _pertinence(competence: str, titre: str, corps: str,
     return score
 
 
-def classer_competences(offer: JobOffer, profile: Profile) -> list[tuple[str, str, float]]:
+def classer_competences(offer: JobOffer, profile: Profile,
+                        imposees: list[str] | None = None,
+                        ) -> list[tuple[str, str, float]]:
     """Toutes les competences de l'inventaire, notees pour cette offre.
 
     Rend des triplets (categorie, competence, score), du plus pertinent au moins.
+
+    `imposees` force des competences en tete quoi qu'en dise l'annonce : vous
+    savez parfois qu'un outil comptera alors que le texte ne le nomme pas. Les
+    intitules sont compares sans accents ni casse, donc "power bi" suffit.
     """
     titre = normalize_key(offer.title)
     corps = normalize_key(offer.description)[:8000]
@@ -224,11 +233,14 @@ def classer_competences(offer: JobOffer, profile: Profile) -> list[tuple[str, st
     # une annonce tronquee, c'est la seule chose exploitable.
     famille = detect_role_family(offer.title, offer.description)
     attendues = {normalize_key(c) for c in competences_attendues(famille)}
+    forcees = {normalize_key(c) for c in (imposees or []) if str(c).strip()}
 
     classees = []
     for categorie, liste in _competences(profile).items():
         for rang, competence in enumerate(liste):
             score = _pertinence(competence, titre, corps, demandees, attendues)
+            if normalize_key(competence) in forcees:
+                score += BONUS_IMPOSEE
             # A score egal, l'ordre de l'inventaire departage : il place en
             # tete les outils les plus courants du metier.
             classees.append((categorie, competence, score - rang * 0.01))
@@ -251,7 +263,8 @@ def _transverses_rubrique(offer: JobOffer, profile: Profile) -> list[Rubrique]:
                      epinglee=True)]
 
 
-def composer_rubriques(offer: JobOffer, profile: Profile) -> list[Rubrique]:
+def composer_rubriques(offer: JobOffer, profile: Profile,
+                       imposees: list[str] | None = None) -> list[Rubrique]:
     """Retient les competences les plus proches de l'offre et les regroupe.
 
     Deux temps. On selectionne d'abord ce que l'annonce reclame explicitement.
@@ -259,7 +272,7 @@ def composer_rubriques(offer: JobOffer, profile: Profile) -> list[Rubrique]:
     celles des memes categories — ce qui repond au besoin tout en montrant un
     peu plus que le strict minimum.
     """
-    classees = classer_competences(offer, profile)
+    classees = classer_competences(offer, profile, imposees)
     if not classees:
         return _rubriques_fixes(profile)
 
@@ -389,8 +402,9 @@ def reecrire_profil(offer: JobOffer, profile: Profile) -> ProfilAdapte:
     )
 
 
-def adapter_cv(offer: JobOffer, profile: Profile) -> AdaptationCV:
-    rubriques = composer_rubriques(offer, profile)
+def adapter_cv(offer: JobOffer, profile: Profile,
+               imposees: list[str] | None = None) -> AdaptationCV:
+    rubriques = composer_rubriques(offer, profile, imposees)
     profil = reecrire_profil(offer, profile)
     return AdaptationCV(
         rubriques=rubriques,

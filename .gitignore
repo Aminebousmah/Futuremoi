@@ -16,6 +16,7 @@ data/logs/
 # Exports : ils contiennent des annonces appartenant aux sites sources.
 # Les republier serait une rediffusion de leur contenu.
 output/*.html
+output/lettre-generique.md
 output/*.csv
 output/*.json
 

@@ -339,6 +339,10 @@ def apply(
     limit: int = typer.Option(10, "--limit", "-n", help="Plafond en mode --all."),
     template_only: bool = typer.Option(
         False, "--template", help="Forcer les templates (sans LLM)."),
+    avec: Optional[list[str]] = typer.Option(
+        None, "--avec",
+        help="Imposer une competence dans le CV, repetable "
+             "(ex : --avec DAX --avec \"Power Query\")."),
     use_llm: bool = typer.Option(
         False, "--llm",
         help="Autoriser un appel FACTURE a l'API Anthropic pour cette commande."),
@@ -399,7 +403,8 @@ def apply(
     for offer in targets:
         with console.status(f"Redaction — {offer.title[:50]}..."):
             application = generator.generate(
-                offer, force_template=template_only, consent_llm=consent)
+                offer, force_template=template_only, consent_llm=consent,
+                imposees=list(avec or []))
             db.save_application(application)
         console.print(
             f"[green]OK[/] [{offer.score:.0f}] {offer.title[:55]}\n"
@@ -424,6 +429,29 @@ def apply(
 # --------------------------------------------------------------------------- #
 #  track / report
 # --------------------------------------------------------------------------- #
+@app.command()
+def lettre(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
+    """Ecrit la lettre de motivation generique, independante de l'offre.
+
+    Le CV reste adapte offre par offre ; la lettre, elle, se copie telle
+    quelle. Hors ligne, aucun appel facture.
+    """
+    from .apply.lettre import ecrire_lettre_generique
+
+    cfg, profile, _ = _load(verbose)
+    chemin = ecrire_lettre_generique(profile, cfg.applications_path.parent
+                                     / "lettre-generique.md")
+    console.print(Panel.fit(
+        "\n".join([
+            "Lettre generique ecrite dans",
+            f"[bold]{chemin}[/]",
+            "",
+            "A copier telle quelle dans un formulaire, ou a retoucher a la marge.",
+        ]),
+        title="Lettre",
+    ))
+
+
 @app.command()
 def entretien(
     offer_id: str = typer.Argument(..., help="Offre a preparer (prefixe accepte)."),
