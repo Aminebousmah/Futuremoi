@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import re
 
-from ..models import JobOffer
+from ..models import ContractType, JobOffer
+from . import freelance
 from .normalize import normalize_key
 
 SKILL_TAXONOMY: dict[str, list[str]] = {
@@ -193,6 +194,11 @@ def detect_role_family(title: str, description: str = "") -> str:
     return "data_generic"
 
 
+# Contrats qu'un signal freelance peut requalifier. Un CDI declare par la
+# source ne l'est jamais : c'est une information positive, pas une absence.
+_CONTRATS_PROMOUVABLES = frozenset({ContractType.UNKNOWN, ContractType.CDD})
+
+
 def enrich_offer(offer: JobOffer) -> JobOffer:
     """Remplace les tags bruts de la source par des competences canoniques.
 
@@ -203,4 +209,14 @@ def enrich_offer(offer: JobOffer) -> JobOffer:
     """
     blob = f"{offer.title}\n{offer.description}\n{' '.join(offer.skills)}"
     offer.skills = extract_skills(blob)
+
+    # Ce que la source n'a pas su declarer : TJM et nature freelance.
+    signals = freelance.detect(offer.title, offer.description)
+    if offer.daily_rate_min is None and offer.daily_rate_max is None:
+        offer.daily_rate_min = signals.rate_min
+        offer.daily_rate_max = signals.rate_max
+    if signals.freelance and offer.contract in _CONTRATS_PROMOUVABLES:
+        offer.contract = ContractType.FREELANCE
+        offer.freelance_marker = signals.marker
+
     return offer

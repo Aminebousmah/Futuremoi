@@ -65,6 +65,9 @@ class JobOffer(BaseModel):
     contract: ContractType = ContractType.UNKNOWN
     daily_rate_min: int | None = None   # EUR / jour
     daily_rate_max: int | None = None
+    # Extrait du texte ayant requalifie l'offre en freelance quand la source
+    # ne l'avait pas declare (cf. pipeline.freelance). None = tag d'origine.
+    freelance_marker: str | None = None
     duration_months: float | None = None
     start_date: date | None = None
     skills: list[str] = Field(default_factory=list)

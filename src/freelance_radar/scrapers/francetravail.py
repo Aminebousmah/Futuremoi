@@ -128,7 +128,9 @@ class FranceTravailScraper(BaseScraper):
         }
         # Par defaut LIB : le catalogue France Travail est surtout salarie, et
         # sans ce filtre la source noie les resultats sous des CDI que le
-        # pipeline rejettera de toute facon. Mettre `type_contrat: ""` pour tout voir.
+        # pipeline rejettera de toute facon. Elargir a "LIB,CDD,MIS" a ete
+        # mesure sans gain (cf. le commentaire de config.yaml : 316 annonces
+        # collectees, 0 requalifiee). Mettre `type_contrat: ""` pour tout voir.
         type_contrat = self._cfg("type_contrat", "LIB")
         if type_contrat:
             base_params["typeContrat"] = type_contrat

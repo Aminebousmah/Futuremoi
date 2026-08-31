@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS offers (
     contract        TEXT,
     daily_rate_min  INTEGER,
     daily_rate_max  INTEGER,
+    freelance_marker TEXT,
     duration_months REAL,
     start_date      TEXT,
     skills          TEXT,
@@ -102,6 +103,7 @@ class Database:
             ("notes", "TEXT DEFAULT ''"),
             ("starred", "INTEGER DEFAULT 0"),
             ("discarded", "INTEGER DEFAULT 0"),
+            ("freelance_marker", "TEXT"),
         ):
             if colonne not in existantes:
                 self.conn.execute(f"ALTER TABLE offers ADD COLUMN {colonne} {definition}")
@@ -366,6 +368,7 @@ class Database:
             "contract": offer.contract.value,
             "daily_rate_min": offer.daily_rate_min,
             "daily_rate_max": offer.daily_rate_max,
+            "freelance_marker": offer.freelance_marker,
             "duration_months": offer.duration_months,
             "start_date": offer.start_date.isoformat() if offer.start_date else None,
             "skills": json.dumps(offer.skills, ensure_ascii=False),
@@ -397,6 +400,7 @@ class Database:
             contract=ContractType(row["contract"] or "unknown"),
             daily_rate_min=row["daily_rate_min"],
             daily_rate_max=row["daily_rate_max"],
+            freelance_marker=row["freelance_marker"],
             duration_months=row["duration_months"],
             start_date=_date.fromisoformat(row["start_date"]) if row["start_date"] else None,
             skills=json.loads(row["skills"] or "[]"),
