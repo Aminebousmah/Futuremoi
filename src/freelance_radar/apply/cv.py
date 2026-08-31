@@ -95,16 +95,14 @@ ALIAS: dict[str, list[str]] = {
     "Zapier / Make": ["zapier", "make.com"],
     # "fabric" seul est ambigu (c'est aussi une bibliotheque Python).
     "Microsoft Fabric": ["microsoft fabric", "ms fabric"],
-    # Vocabulaire finance / performance : l'annonce dit "controle de gestion"
-    # ou "ecarts budgetaires" la ou l'inventaire dit "Analyse d'ecarts".
-    "Analyse d'écarts": ["ecarts budgetaires", "analyse d'ecarts", "variance"],
-    "Analyse de rentabilité": ["rentabilite", "profitabilite", "marge"],
-    "Consolidation de données": ["consolidation"],
-    "Business case / ROI": ["business case", "roi", "retour sur investissement"],
-    "Pilotage de la performance": ["pilotage de la performance", "performance management"],
-    "Prévision de la demande": ["prevision de la demande", "demand planning",
-                                "demand forecasting"],
-    "Revenue management": ["revenue management", "yield management"],
+    # Concepts finance retenus sur mesure : ce sont les seuls a apparaitre
+    # dans les annonces Data du secteur banque / finance / assurance.
+    "Conformité et contrôle interne": ["conformite", "compliance", "controle interne",
+                                       "audit interne"],
+    "Gestion des risques": ["gestion des risques", "risk management",
+                            "risque de credit", "risques financiers"],
+    "Tarification / pricing": ["tarification", "pricing"],
+    "Facturation et refacturation": ["facturation", "refacturation", "billing"],
     # Les annonces nomment le secteur plus souvent que l'outil financier.
     # Une annonce dit "Banque / CIB", jamais "finance & controle de gestion" :
     # sans les mots du secteur, la rubrique restait a zero sur ses meilleures
