@@ -219,3 +219,49 @@ class TestAdaptationCV:
         contenu = (Path(app.file_path) / "cv-adapte.md").read_text(encoding="utf-8")
         assert "composées pour cette offre" in contenu
         assert "jamais touchés" in contenu
+
+
+class TestFiche:
+    """Fiche de candidature : les champs qu'un formulaire reclame."""
+
+    def test_prenom_et_nom_separes(self, cfg, profile):
+        fiche = ApplicationGenerator(cfg, profile).fiche_candidature(make_offer())
+        valeurs = {c.cle: c.valeur for c in fiche.identite}
+        assert valeurs["prenom"] == "Ada" and valeurs["nom"] == "Test"
+
+    def test_nom_en_un_seul_mot(self, cfg, profile):
+        from freelance_radar.apply.candidature import _nom_prenom
+        assert _nom_prenom("Prince") == ("Prince", "")
+
+    def test_le_tjm_reprend_celui_de_la_lettre(self, cfg, profile):
+        offre = make_offer(daily_rate_min=900, daily_rate_max=900)
+        gen = ApplicationGenerator(cfg, profile)
+        app = gen.generate(offre, force_template=True)
+        fiche = gen.fiche_candidature(offre)
+        tjm = next(c.valeur for c in fiche.mission if c.cle == "tjm")
+        assert str(app.proposed_rate) in tjm
+
+    def test_url_nettoyee_de_son_tracking(self, cfg, profile):
+        # Le lien part chez un client : il ne doit pas trainer notre identifiant
+        # d'application Adzuna.
+        from freelance_radar.apply.candidature import url_propre
+        sale = "https://www.adzuna.fr/details/123?utm_medium=api&utm_source=cc8f9a36&x=1"
+        propre = url_propre(sale)
+        assert "utm_source" not in propre and "cc8f9a36" not in propre
+        assert propre.endswith("x=1")
+
+    def test_une_question_d_experience_sur_la_competence_commune(self, cfg, profile):
+        from freelance_radar.pipeline.score import score_offer
+
+        offre = score_offer(make_offer(skills=["dbt", "Snowflake"]), profile, cfg)
+        fiche = ApplicationGenerator(cfg, profile).fiche_candidature(offre)
+        libelles = [c.libelle for c in fiche.questions]
+        assert any("expérience sur" in lib for lib in libelles)
+
+    def test_la_preuve_vient_des_references_reelles(self, cfg, profile):
+        from freelance_radar.pipeline.score import score_offer
+
+        offre = score_offer(make_offer(skills=["dbt"]), profile, cfg)
+        fiche = ApplicationGenerator(cfg, profile).fiche_candidature(offre)
+        experience = next(c.valeur for c in fiche.questions if "expérience sur" in c.libelle)
+        assert "Retailer" in experience      # la seule reference du profil de test

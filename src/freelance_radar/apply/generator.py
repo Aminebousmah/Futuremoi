@@ -22,6 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ..config import Config, Profile, project_root
 from ..models import Application, ApplicationStatus, JobOffer, RemotePolicy
 from ..pipeline.enrich import detect_role_family
+from .candidature import Fiche, construire_fiche
 from .cv import adapter_cv, plan_canva
 from .llm import LLMWriter
 
@@ -268,6 +269,27 @@ Rends le JSON demande, en francais."""
             proposed_rate=ctx["proposed_rate"],
             generator=rendered["generator"],
             file_path=str(folder),
+        )
+
+    def fiche_candidature(self, offer: JobOffer) -> Fiche:
+        """Reponses prêtes a coller dans un formulaire d'employeur.
+
+        Reutilise le meme contexte que la lettre : accroche et message ne sont
+        pas reecrits ici, ce qui garantit qu'une candidature dit partout la
+        meme chose.
+        """
+        ctx = self._context(offer)
+        rendu = self._render_templates(ctx)
+        message = " ".join(
+            ligne for ligne in rendu["email_body"].splitlines()
+            if ligne.strip() and not ligne.startswith(("-", "Bien cordialement"))
+        ).strip()
+        return construire_fiche(
+            offer, self.profile,
+            tjm_propose=ctx["proposed_rate"],
+            disponibilite=ctx["availability"],
+            accroche=self._template_hook(ctx),
+            message=message,
         )
 
     def _write_files(self, offer: JobOffer, ctx: dict[str, Any],

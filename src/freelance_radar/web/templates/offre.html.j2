@@ -90,6 +90,12 @@
     <p class="sub" style="margin:.5rem 0">Aucun brouillon pour cette offre.</p>
   {% endif %}
 
+  <p style="margin:.2rem 0 .8rem">
+    <a class="bouton primaire" style="border:none" href="/offre/{{ offre.id }}/fiche">
+      Fiche de candidature — champs prêts à copier
+    </a>
+  </p>
+
   <form class="enligne" method="post" action="/offre/{{ offre.id }}/candidature">
     <select name="moteur">
       <option value="auto">Moteur automatique (LLM si disponible)</option>

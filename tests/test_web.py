@@ -226,3 +226,26 @@ class TestAnnotations:
         for route in ("note", "selection", "ecarter", "postuler"):
             assert client.post(f"/offre/inexistante/{route}",
                                data={"note": "x"}).status_code == 404
+
+
+class TestFicheCandidature:
+    """La fiche rassemble ce qu'un formulaire d'employeur reclame."""
+
+    def test_la_fiche_s_affiche(self, client, offre_en_base):
+        r = client.get(f"/offre/{offre_en_base.id}/fiche")
+        assert r.status_code == 200
+        for attendu in ("Prénom", "E-mail", "Téléphone", "LinkedIn",
+                        "TJM / prétentions", "Disponibilité"):
+            assert attendu in r.text, attendu
+
+    def test_les_valeurs_du_profil_y_sont(self, client, offre_en_base):
+        r = client.get(f"/offre/{offre_en_base.id}/fiche")
+        assert "Ada" in r.text and "ada@example.com" in r.text
+
+    def test_offre_inconnue(self, client):
+        assert client.get("/offre/inexistante/fiche").status_code == 404
+
+    def test_rien_n_est_soumis_depuis_la_fiche(self, client, offre_en_base):
+        # Garde-fou : la page ne doit contenir aucun formulaire d'envoi.
+        r = client.get(f"/offre/{offre_en_base.id}/fiche")
+        assert "<form" not in r.text.split("<footer")[0].split('id="btn-campagne"')[-1]

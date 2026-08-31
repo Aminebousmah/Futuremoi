@@ -108,6 +108,19 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
                     poids=cfg.scoring.weights,
                     statuts=[s.value for s in ApplicationStatus])
 
+    @app.get("/offre/{offer_id}/fiche", response_class=HTMLResponse)
+    def fiche(request: Request, offer_id: str) -> HTMLResponse:
+        """Reponses prêtes a coller dans le formulaire de l'employeur."""
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        fiche = ApplicationGenerator(cfg, profile).fiche_candidature(offre)
+        return page(request, "fiche.html.j2", offre=offre, fiche=fiche)
+
     @app.get("/candidatures", response_class=HTMLResponse)
     def pipeline(request: Request) -> HTMLResponse:
         base = db()

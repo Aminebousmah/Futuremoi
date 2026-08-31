@@ -69,6 +69,9 @@ explicite au démarrage ; ne le faites qu'en connaissance de cause.
 - **Écarter** ce qui ne vous concerne pas — l'offre disparaît des listes.
 - **Générer un brouillon** de candidature, et marquer « j'ai postulé » après envoi.
 - **Suivre** vos candidatures dans un tableau dédié, avec accès aux documents.
+- **Remplir le formulaire de l'employeur** depuis une fiche dédiée : chaque champ
+  attendu (nom, e-mail, téléphone, LinkedIn, TJM, disponibilité, questions
+  ouvertes) avec un bouton de copie.
 
 Écarter **masque** l'offre, ça ne la supprime pas de la base. C'est délibéré : une
 suppression réelle serait annulée à la campagne suivante, qui réinsérerait la même
@@ -181,6 +184,8 @@ freelance-radar/
 │   │   └── runner.py          # orchestration d'une campagne
 │   ├── apply/
 │   │   ├── generator.py       # fabrique le dossier de candidature
+│   │   ├── candidature.py     # fiche de champs pour les formulaires employeur
+│   │   ├── cv.py              # compose la section compétences selon l'offre
 │   │   └── llm.py             # rédaction par Claude (optionnelle, avec repli)
 │   ├── storage/db.py          # SQLite : offres, candidatures, campagnes
 │   ├── report/html.py         # exports HTML / CSV / JSON
@@ -193,7 +198,7 @@ freelance-radar/
 ├── docs/cv-canva.md           # adapter le CV Canva : mode d'emploi et limites
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 175 tests, sans accès réseau
+└── tests/                     # 185 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -475,7 +480,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 175 tests, aucun accès réseau
+pytest              # 185 tests, aucun accès réseau
 ruff check src tests
 ```
 

@@ -1,0 +1,108 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "offres" %}
+{% block titre %}Fiche de candidature — {{ offre.title }}{% endblock %}
+
+{% macro bloc(titre, champs) %}
+<div class="panneau">
+  <strong>{{ titre }}</strong>
+  <table style="margin-top:.6rem">
+    <tbody>
+    {% for c in champs %}
+      <tr>
+        <th style="width:15rem;vertical-align:top">{{ c.libelle }}</th>
+        <td>
+          {% if c.valeur %}
+            <span class="valeur" id="v-{{ c.cle }}">{{ c.valeur }}</span>
+          {% else %}
+            <span class="bas">— {{ c.aide or "non renseigné" }}</span>
+          {% endif %}
+        </td>
+        <td style="width:5.5rem;text-align:right">
+          {% if c.valeur %}
+          <button type="button" class="copier" data-cible="v-{{ c.cle }}">copier</button>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% block contenu %}
+<h1>Fiche de candidature</h1>
+<p class="sub">
+  {{ offre.title }}{{ " — " ~ offre.company if offre.company else "" }} ·
+  <a href="/offre/{{ offre.id }}">retour à l'offre</a> ·
+  <a href="{{ offre.url }}" target="_blank" rel="noopener">ouvrir le formulaire</a>
+</p>
+
+<div class="panneau avert">
+  Ouvrez le formulaire de l'employeur dans un autre onglet et copiez champ par
+  champ. Rien n'est envoyé d'ici : la soumission reste votre geste.
+</div>
+
+{{ bloc("Identité et contact", fiche.identite) }}
+{{ bloc("Conditions de mission", fiche.mission) }}
+{{ bloc("Questions ouvertes", fiche.questions) }}
+
+<script>
+  // Copie dans le presse-papiers, avec retour visuel : sans lui, on ne sait pas
+  // si le clic a pris et on colle du vide dans le formulaire.
+  //
+  // Deux mecanismes, en cascade. L'API moderne est refusee quand la page n'a
+  // pas le focus ou hors contexte securise ; on retombe alors sur la selection
+  // + execCommand, qui marche partout. En dernier recours on selectionne le
+  // texte pour que Ctrl+C fasse le travail.
+  (function () {
+    function parSelection(noeud) {
+      var zone = document.createElement("textarea");
+      zone.value = noeud.textContent.trim();
+      zone.style.position = "fixed";
+      zone.style.opacity = "0";
+      document.body.appendChild(zone);
+      zone.focus();
+      zone.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(zone);
+      return ok;
+    }
+
+    function selectionnerPour(noeud) {
+      var plage = document.createRange();
+      plage.selectNodeContents(noeud);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(plage);
+    }
+
+    document.querySelectorAll("button.copier").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var source = document.getElementById(b.dataset.cible);
+        if (!source) { return; }
+        var texte = source.textContent.trim();
+
+        var afficher = function (etat) {
+          b.textContent = etat;
+          setTimeout(function () { b.textContent = "copier"; }, 1600);
+        };
+        var replis = function () {
+          if (parSelection(source)) { afficher("copié ✓"); return; }
+          selectionnerPour(source);
+          afficher("Ctrl+C");
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(texte).then(
+            function () { afficher("copié ✓"); },
+            replis
+          );
+        } else {
+          replis();
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}
