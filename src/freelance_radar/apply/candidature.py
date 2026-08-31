@@ -111,9 +111,14 @@ def construire_fiche(offer: JobOffer, profile: Profile, *,
         Champ("site", "Site / portfolio", str(ident.get("website", ""))),
         Champ("ville", "Ville", str(ident.get("city", ""))),
         Champ("titre", "Intitulé de poste", str(ident.get("title", ""))),
-        Champ("statut", "Statut", "Freelance / indépendant"),
-        Champ("siret", "SIRET", str(ident.get("siret", "")),
-              aide="à compléter dans profile.yaml si un formulaire le réclame"),
+        Champ("statut", "Statut", profile.statut_juridique),
+        # En portage, le SIRET attendu est celui de la société : c'est elle
+        # qui contracte et facture. L'aide le dit, pour qu'un numéro emprunté
+        # ne soit jamais recopié comme une immatriculation personnelle.
+        Champ("siret", "SIRET", profile.siret,
+              aide=("SIRET de la société de portage"
+                    if not (profile.identity or {}).get("siret")
+                    else "votre immatriculation")),
     ]
 
     experience = profile.positioning.get("years_experience", "")
