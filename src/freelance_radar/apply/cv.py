@@ -95,6 +95,26 @@ ALIAS: dict[str, list[str]] = {
     "Zapier / Make": ["zapier", "make.com"],
     # "fabric" seul est ambigu (c'est aussi une bibliotheque Python).
     "Microsoft Fabric": ["microsoft fabric", "ms fabric"],
+    # Vocabulaire finance / performance : l'annonce dit "controle de gestion"
+    # ou "ecarts budgetaires" la ou l'inventaire dit "Analyse d'ecarts".
+    "Analyse d'écarts": ["ecarts budgetaires", "analyse d'ecarts", "variance"],
+    "Analyse de rentabilité": ["rentabilite", "profitabilite", "marge"],
+    "Consolidation de données": ["consolidation"],
+    "Business case / ROI": ["business case", "roi", "retour sur investissement"],
+    "Pilotage de la performance": ["pilotage de la performance", "performance management"],
+    "Prévision de la demande": ["prevision de la demande", "demand planning",
+                                "demand forecasting"],
+    "Revenue management": ["revenue management", "yield management"],
+    # Les annonces nomment le secteur plus souvent que l'outil financier.
+    # Une annonce dit "Banque / CIB", jamais "finance & controle de gestion" :
+    # sans les mots du secteur, la rubrique restait a zero sur ses meilleures
+    # cibles.
+    "Finance & contrôle de gestion": ["controle de gestion", "finance", "financier",
+                                      "financiere", "budgetaire", "banque", "bancaire",
+                                      "cib", "asset management", "comptable"],
+    "Secteur public": ["secteur public", "ministere", "collectivite", "administration"],
+    "Hôtellerie & tourisme": ["hotellerie", "tourisme", "hospitality"],
+    "RSE / ESG": ["rse", "esg", "extra-financier", "decarbonation"],
     "Dataiku": ["dataiku", "dataiku dss"],
     "Hadoop": ["hadoop", "hdfs"],
     "Lakehouse": ["lakehouse", "lake house"],
