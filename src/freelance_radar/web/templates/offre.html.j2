@@ -49,10 +49,21 @@
       {% set v = offre.score_detail.get(signal) %}
       {% if v is number %}
       <tr><td>{{ signal }}</td><td>{{ "%.2f"|format(v) }}</td><td>{{ "%.0f"|format(poids_signal) }}</td></tr>
+      {% else %}
+      {# Signal muet : retiré du calcul. L'afficher évite de lire un score
+         élevé comme une certitude. #}
+      <tr class="sub"><td>{{ signal }}</td><td>non renseigné</td><td>{{ "%.0f"|format(poids_signal) }}</td></tr>
       {% endif %}
     {% endfor %}
     </tbody>
   </table>
+  {% set couvert = offre.score_detail.get("_poids_couvert") %}
+  {% if couvert is number and couvert < 1.0 %}
+  <p class="sub" style="margin:.6rem 0 0">
+    Score établi sur <strong>{{ "%.0f"|format(couvert * 100) }} %</strong> du poids
+    total — les signaux non renseignés sont exclus du calcul, pas comptés à moitié.
+  </p>
+  {% endif %}
   {% set communes = offre.score_detail.get("_matched_skills") %}
   {% set ecarts = offre.score_detail.get("_missing_skills") %}
   {% if communes %}<p style="margin:.7rem 0 0"><strong class="haut">Recoupement :</strong>

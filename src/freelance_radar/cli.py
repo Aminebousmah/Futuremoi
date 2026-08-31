@@ -302,7 +302,19 @@ def show(offer_id: str = typer.Argument(..., help="Identifiant (prefixe accepte)
             value = detail.get(signal)
             if isinstance(value, (int, float)):
                 breakdown.add_row(signal, f"{value:.2f}", f"{weight:.0f}")
+            else:
+                # Un signal muet est retire du calcul : le dire evite de lire
+                # un score eleve comme une certitude.
+                breakdown.add_row(f"[dim]{signal}[/]", "[dim]n/c[/]",
+                                  f"[dim]{weight:.0f}[/]")
         console.print(breakdown)
+
+        couvert = detail.get("_poids_couvert")
+        if isinstance(couvert, (int, float)) and couvert < 1.0:
+            console.print(
+                f"[yellow]Score etabli sur {couvert:.0%} du poids total[/] — "
+                f"non renseigne : {', '.join(detail.get('_signaux_ignores') or [])}\n"
+            )
 
         matched = detail.get("_matched_skills") or []
         gaps = detail.get("_missing_skills") or []
