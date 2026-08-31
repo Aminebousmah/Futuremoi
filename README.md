@@ -466,7 +466,8 @@ Lancez `radar scrape --explain` pour voir le décompte des rejets par motif.
 ├── email.md       # version courte pour un envoi par mail (objet inclus)
 ├── offre.md       # l'annonce complète, pour la relecture hors ligne
 ├── offre.json     # les données brutes de l'offre
-├── cv-adapte.md   # profil réécrit + compétences composées pour cette offre
+├── cv.pdf         # le CV adapté, mis en page — le livrable
+├── cv-adapte.md   # la même adaptation en note de relecture
 ├── checklist.md   # à vérifier avant envoi
 └── entretien.md   # fiche de préparation d'entretien (`radar entretien`)
 ```
@@ -501,6 +502,46 @@ Le TJM proposé est calculé, pas copié, selon `constraints.rate_strategy` :
 - **`target`** — ne jamais dépasser votre objectif.
 
 Dans les deux cas, **jamais sous votre plancher déclaré**.
+
+---
+
+## Le CV en PDF
+
+`radar apply` écrit un `cv.pdf` prêt à envoyer : la maquette de votre CV,
+avec le paragraphe de profil réécrit et les compétences composées **pour
+cette offre**. Vos expériences, vos chiffres et vos dates ne sont jamais
+touchés.
+
+Le contenu vient de `config/profile.yaml` (section `cv.parcours`), la mise en
+page de `apply/pdf.py`. **Canva n'est plus dans la chaîne** — il reste utile
+pour retoucher la maquette de référence à la main.
+
+### Pourquoi pas Canva
+
+L'adaptation passait par le connecteur Canva : copie du design, remplacements
+au mot près, export. Ça marche, mais ça suppose une session interactive.
+L'API publique Canva Connect, elle, ne sait pas faire de find-and-replace sur
+un design existant — seulement remplir des *brand templates* — et demande un
+abonnement payant.
+
+### Pourquoi fpdf2
+
+`fpdf2` est du pur Python. WeasyPrint a été essayé d'abord : il s'installe,
+puis Windows bloque sa DLL compilée au titre du contrôle d'application — la
+même protection qui empêche `radar.exe`. Tout moteur à extension C ou à
+binaire embarqué (Playwright) échouerait pareil.
+
+Effet de bord favorable : le texte du PDF est **parfaitement extractible**.
+L'export Canva positionne chaque glyphe individuellement, ce qui fait lire
+« P o w e r  B I » à certains parseurs ATS.
+
+### Polices et photo
+
+Arial (ou Liberation Sans sous Linux) pour le corps, Constantia pour le nom.
+Les polices Canva ne sont pas redistribuables. Si aucune n'est trouvée, le
+PDF est simplement absent du dossier — la lettre et la note restent écrites.
+
+La photo est déclarée dans `documents.photo` et détourée en cercle.
 
 ---
 

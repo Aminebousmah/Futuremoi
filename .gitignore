@@ -21,3 +21,7 @@ output/*.json
 
 # Preview local
 .claude/launch.json
+
+# Photo de profil : donnee personnelle, au meme titre que profile.yaml.
+# Le generateur PDF la lit via `documents.photo`.
+assets/photo-*.png

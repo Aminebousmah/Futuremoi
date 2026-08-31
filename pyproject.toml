@@ -14,11 +14,13 @@ dependencies = [
     "Jinja2>=3.1",
     "python-dateutil>=2.9",
     "python-dotenv>=1.0",
+    # Generation du CV en PDF. Pur Python : le controle d'application
+    # de Windows bloque les extensions compilees (WeasyPrint, Playwright).
+    "fpdf2>=2.8",
 ]
 
 [project.optional-dependencies]
 llm = ["anthropic>=0.40"]
-pdf  = ["weasyprint>=62.0"]
 web  = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9"]
 dev  = ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.5"]
 

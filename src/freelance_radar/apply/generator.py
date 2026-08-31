@@ -368,6 +368,17 @@ Rends le JSON demande, en francais."""
                 json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8"
             )
 
+        # Le PDF est le livrable ; le .md reste la note de relecture. Une
+        # police manquante ne doit pas faire echouer toute la generation :
+        # les autres pieces du dossier sont deja ecrites.
+        try:
+            from .pdf import generer_cv
+
+            generer_cv(offer, self.profile, folder / "cv.pdf")
+        except Exception as exc:
+            log.warning("CV PDF non genere (%s) : la note cv-adapte.md reste "
+                        "disponible.", exc)
+
     @staticmethod
     def _offer_sheet(offer: JobOffer) -> str:
         return "\n".join([

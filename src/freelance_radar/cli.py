@@ -411,7 +411,7 @@ def apply(
             f"[bold]{len(targets)}[/] brouillon(s) genere(s) dans "
             f"[bold]{cfg.applications_path.relative_to(project_root())}[/].",
             "",
-            "Chaque dossier contient : lettre.md, email.md, offre.md, checklist.md.",
+            "Chaque dossier contient : cv.pdf, lettre.md, email.md, offre.md, checklist.md.",
             "[yellow]Relisez avant envoi : rien n'est envoye automatiquement.[/]",
             "",
             "Apres envoi : [bold]radar track <id> --status sent[/]",
