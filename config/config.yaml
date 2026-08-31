@@ -167,6 +167,13 @@ sources:
     max_pages: 2
     max_offers: 40
 
+  collectivework:
+    enabled: true
+    kind: html
+    # 6360 missions au catalogue, 30 par page. Le pipeline filtre en aval,
+    # mais parcourir tout le catalogue a chaque campagne serait impoli.
+    max_pages: 5
+
   mindquest:
     enabled: true
     kind: html

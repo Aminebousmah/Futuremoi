@@ -3,6 +3,7 @@
 # Les imports ci-dessous declenchent l'enregistrement via le decorateur @register.
 from . import (
     adzuna,
+    collectivework,
     francetravail,
     freelanceinfo,
     freework,
