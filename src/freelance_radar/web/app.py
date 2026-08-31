@@ -121,6 +121,16 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         fiche = ApplicationGenerator(cfg, profile).fiche_candidature(offre)
         return page(request, "fiche.html.j2", offre=offre, fiche=fiche)
 
+    @app.get("/outils", response_class=HTMLResponse)
+    def outils(request: Request) -> HTMLResponse:
+        """Le favori de pre-remplissage, a installer une fois pour toutes."""
+        from .bookmarklet import CHAMPS, construire, valeurs_profil
+
+        valeurs = {c: v for c, v in valeurs_profil(profile).items() if v}
+        return page(request, "outils.html.j2",
+                    favori=construire(profile), valeurs=valeurs,
+                    champs=[(cle, motifs) for cle, motifs in CHAMPS if valeurs.get(cle)])
+
     @app.get("/candidatures", response_class=HTMLResponse)
     def pipeline(request: Request) -> HTMLResponse:
         base = db()

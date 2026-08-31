@@ -85,6 +85,7 @@
   <nav>
     <a href="/" class="{{ 'actif' if page_actif == 'offres' }}">Offres</a>
     <a href="/candidatures" class="{{ 'actif' if page_actif == 'candidatures' }}">Candidatures</a>
+    <a href="/outils" class="{{ 'actif' if page_actif == 'outils' }}">Outils</a>
   </nav>
   <form method="post" action="/campagne">
     <button type="submit" class="primaire" {{ 'disabled' if campagne.running }}

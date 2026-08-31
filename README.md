@@ -69,9 +69,17 @@ explicite au démarrage ; ne le faites qu'en connaissance de cause.
 - **Écarter** ce qui ne vous concerne pas — l'offre disparaît des listes.
 - **Générer un brouillon** de candidature, et marquer « j'ai postulé » après envoi.
 - **Suivre** vos candidatures dans un tableau dédié, avec accès aux documents.
-- **Remplir le formulaire de l'employeur** depuis une fiche dédiée : chaque champ
-  attendu (nom, e-mail, téléphone, LinkedIn, TJM, disponibilité, questions
-  ouvertes) avec un bouton de copie.
+- **Remplir le formulaire de l'employeur** de deux façons :
+  - une **fiche** par offre, chaque champ avec un bouton de copie ;
+  - un **favori de pré-remplissage** (onglet *Outils*) que vous glissez dans
+    votre barre de favoris. Sur la page de candidature, un clic dépose vos
+    informations dans les champs reconnus.
+
+Le favori ne soumet jamais le formulaire, n'écrase aucun champ déjà rempli et
+ignore les champs de mot de passe. Vos informations sont contenues dans le
+favori lui-même — aucun appel réseau, rien ne remonte au serveur local. En
+contrepartie, régénérez-le depuis l'onglet *Outils* après avoir modifié votre
+profil.
 
 Écarter **masque** l'offre, ça ne la supprime pas de la base. C'est délibéré : une
 suppression réelle serait annulée à la campagne suivante, qui réinsérerait la même
@@ -192,13 +200,14 @@ freelance-radar/
 │   └── templates/             # lettre, email, rapport (Jinja2)
 │   ├── web/                   # interface web locale (FastAPI + Jinja2)
 │   │   ├── app.py             # routes ; appelle le même moteur que la CLI
+│   │   ├── bookmarklet.py     # favori de pré-remplissage de formulaire
 │   │   ├── state.py           # suivi de la campagne lancée en tâche de fond
 │   │   └── templates/         # pages HTML
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
 ├── docs/cv-canva.md           # adapter le CV Canva : mode d'emploi et limites
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 185 tests, sans accès réseau
+└── tests/                     # 192 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -480,7 +489,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 185 tests, aucun accès réseau
+pytest              # 192 tests, aucun accès réseau
 ruff check src tests
 ```
 

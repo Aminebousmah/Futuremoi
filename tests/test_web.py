@@ -249,3 +249,64 @@ class TestFicheCandidature:
         # Garde-fou : la page ne doit contenir aucun formulaire d'envoi.
         r = client.get(f"/offre/{offre_en_base.id}/fiche")
         assert "<form" not in r.text.split("<footer")[0].split('id="btn-campagne"')[-1]
+
+
+class TestFavoriRemplissage:
+    """Le favori qui pré-remplit un formulaire d'employeur."""
+
+    @staticmethod
+    def _script(profile):
+        from urllib.parse import unquote
+
+        from freelance_radar.web.bookmarklet import construire
+
+        favori = construire(profile)
+        assert favori.startswith("javascript:")
+        return unquote(favori[len("javascript:"):])
+
+    def test_les_sauts_de_ligne_sont_conserves(self, profile):
+        """Regression : compacter le script cassait le favori.
+
+        Joindre les lignes par des espaces transformait chaque commentaire de
+        fin de ligne en bâillon — tout ce qui suivait se retrouvait commenté et
+        le script ne s'exécutait plus.
+        """
+        script = self._script(profile)
+        assert script.count("\n") > 20
+        for ligne in script.splitlines():
+            avant, sep, apres = ligne.partition("//")
+            if sep and "http" not in avant:
+                assert not apres.strip().startswith("var "), ligne
+
+    def test_le_script_est_syntaxiquement_valide(self, profile):
+        # Equilibrage des delimiteurs : un script casse ne leve aucune erreur
+        # a la generation, seulement au clic dans le navigateur.
+        script = self._script(profile)
+        for ouvrant, fermant in (("(", ")"), ("{", "}"), ("[", "]")):
+            assert script.count(ouvrant) == script.count(fermant), ouvrant
+
+    def test_ne_soumet_jamais_le_formulaire(self, profile):
+        script = self._script(profile)
+        for interdit in ("submit()", ".click()", "form.submit", "requestSubmit"):
+            assert interdit not in script, interdit
+
+    def test_ne_sort_pas_du_navigateur(self, profile):
+        # Les donnees vivent dans le favori : aucun appel reseau.
+        script = self._script(profile)
+        for interdit in ("fetch(", "XMLHttpRequest", "navigator.sendBeacon"):
+            assert interdit not in script, interdit
+
+    def test_les_valeurs_du_profil_y_sont(self, profile):
+        script = self._script(profile)
+        assert "ada@example.com" in script and "Ada" in script
+
+    def test_les_champs_sensibles_sont_ecartes(self, profile):
+        script = self._script(profile)
+        assert "password" in script          # présent dans la liste des types ignorés
+        assert "ignores" in script
+
+    def test_la_page_outils_propose_le_favori(self, client):
+        r = client.get("/outils")
+        assert r.status_code == 200
+        assert "javascript:" in r.text
+        assert "ne soumet jamais" in r.text

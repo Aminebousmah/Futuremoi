@@ -1,0 +1,64 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "outils" %}
+{% block titre %}Outils — freelance-radar{% endblock %}
+
+{% block contenu %}
+<h1>Pré-remplir un formulaire</h1>
+<p class="sub">
+  Un favori à installer une fois. Sur la page de candidature d'un employeur,
+  vous le cliquez et vos informations se déposent dans les champs reconnus.
+</p>
+
+<div class="panneau">
+  <strong>1. Installer</strong>
+  <p class="sub" style="margin:.5rem 0">
+    Affichez votre barre de favoris (<code>Ctrl+Maj+B</code>), puis
+    <strong>glissez le bouton ci-dessous dedans</strong>. Un clic dessus ne sert à rien
+    ici — c'est sur la page de l'employeur qu'il travaille.
+  </p>
+  <p>
+    <a class="bouton primaire" style="border:none;font-weight:600"
+       href="{{ favori }}" onclick="return false;">Remplir ma candidature</a>
+  </p>
+</div>
+
+<div class="panneau">
+  <strong>2. Utiliser</strong>
+  <ol class="sub" style="margin:.6rem 0 0;padding-left:1.2rem;line-height:1.9">
+    <li>Ouvrez le formulaire de candidature de l'employeur.</li>
+    <li>Cliquez sur le favori <em>Remplir ma candidature</em>.</li>
+    <li>Les champs reconnus se remplissent et s'entourent de vert.</li>
+    <li><strong>Relisez, complétez le reste, et envoyez vous-même.</strong></li>
+  </ol>
+</div>
+
+<div class="panneau avert">
+  Le favori <strong>ne soumet jamais</strong> le formulaire et n'écrase aucun champ
+  déjà rempli. Vos informations sont contenues dans le favori lui-même : rien
+  n'est envoyé sur le réseau, ni à ce serveur, ni ailleurs. En contrepartie,
+  <strong>régénérez-le depuis cette page</strong> après avoir modifié votre profil.
+</div>
+
+<div class="panneau scroll">
+  <strong>Ce qu'il sait remplir</strong>
+  <table style="margin-top:.6rem">
+    <thead><tr><th>Champ</th><th>Valeur déposée</th><th>Reconnu quand le libellé contient</th></tr></thead>
+    <tbody>
+    {% for cle, motifs in champs %}
+      <tr>
+        <td>{{ cle.replace("_", " ") }}</td>
+        <td>{{ valeurs[cle] }}</td>
+        <td class="bas" style="font-size:.8rem">
+          {% for m in motifs[:4] %}<span class="chip">{{ m }}</span>{% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="bas" style="font-size:.82rem;margin:.8rem 0 0">
+    Les réponses propres à une mission — message, TJM négocié, questions ouvertes —
+    restent sur la <strong>fiche de candidature</strong> de chaque offre : elles changent
+    d'une offre à l'autre, un favori ne peut pas les connaître.
+  </p>
+</div>
+{% endblock %}
