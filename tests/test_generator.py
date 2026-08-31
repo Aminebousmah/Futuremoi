@@ -62,11 +62,30 @@ class TestGeneration:
         app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
         assert app.proposed_rate == 650
 
-    def test_checklist_signale_un_cv_manquant(self, cfg, profile):
+    def test_checklist_pointe_le_cv_du_dossier(self, cfg, profile):
+        """Le CV est genere ici : la checklist pointe dessus, pas ailleurs.
+
+        Elle decrivait auparavant un collage manuel dans Canva et pointait le
+        PDF d'origine du profil — un flux qui n'existe plus.
+        """
         app = ApplicationGenerator(cfg, profile).generate(make_offer(), force_template=True)
         checklist = (Path(app.file_path) / "checklist.md").read_text(encoding="utf-8")
-        assert "ABSENT" in checklist  # assets/CV.pdf n'existe pas dans les fixtures
+        assert "Canva" not in checklist
+        assert "cv.pdf" in checklist
         assert "envoi est manuel" in checklist
+
+    def test_checklist_signale_un_demarrage_immediat(self, cfg, profile):
+        """Un ASAP face a une disponibilite lointaine se dit tout de suite."""
+        offre = make_offer(description="Mission data. Demarrage ASAP, equipe en place.")
+        app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
+        checklist = (Path(app.file_path) / "checklist.md").read_text(encoding="utf-8")
+        assert "Démarrage immédiat" in checklist
+
+    def test_pas_d_alerte_de_demarrage_sans_urgence(self, cfg, profile):
+        offre = make_offer(description="Mission data au long cours, demarrage a caler.")
+        app = ApplicationGenerator(cfg, profile).generate(offre, force_template=True)
+        checklist = (Path(app.file_path) / "checklist.md").read_text(encoding="utf-8")
+        assert "Démarrage immédiat" not in checklist
 
     def test_pas_de_clause_teletravail_bancale_quand_le_rythme_est_inconnu(self, cfg, profile):
         # Sans le garde-fou, l'email annonce "en a preciser", ce qui ne veut rien dire.
