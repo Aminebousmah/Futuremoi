@@ -132,6 +132,9 @@ class Profile(BaseModel):
     references: list[dict[str, Any]] = Field(default_factory=list)
     documents: dict[str, Any] = Field(default_factory=dict)
     preferences: dict[str, Any] = Field(default_factory=dict)
+    # Portage salarial : societe et SIRET. Renseigne, ce bloc change le
+    # statut annonce partout plutot que de laisser un "freelance" en dur.
+    portage: dict[str, Any] = Field(default_factory=dict)
     # Inventaire d'outils et rubriques fixes du CV, utilises pour composer
     # la section competences en fonction de l'offre.
     cv: dict[str, Any] = Field(default_factory=dict)
@@ -146,6 +149,24 @@ class Profile(BaseModel):
         for level in ("expert", "advanced", "familiar"):
             out.extend(self.skills.get(level, []) or [])
         return out
+
+    @property
+    def statut_juridique(self) -> str:
+        """Ce qu'il faut repondre a un formulaire qui demande le statut."""
+        if (self.portage or {}).get("siret"):
+            societe = (self.portage or {}).get("societe") or ""
+            return f"Portage salarial ({societe})" if societe else "Portage salarial"
+        return "Freelance / independant"
+
+    @property
+    def siret(self) -> str:
+        """SIRET a fournir : celui du portage a defaut d'immatriculation propre.
+
+        En portage salarial, c'est bien la societe qui contracte et facture :
+        son numero est la reponse attendue par les formulaires et les contrats.
+        """
+        return (str((self.identity or {}).get("siret", "")).strip()
+                or str((self.portage or {}).get("siret", "")).strip())
 
     def skill_weight(self, skill: str) -> float:
         """Poids d'une competence selon le niveau declare."""
