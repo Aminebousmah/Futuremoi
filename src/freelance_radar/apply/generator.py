@@ -19,7 +19,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from ..config import Config, Profile, project_root
+from ..config import Config, Profile
 from ..models import Application, ApplicationStatus, JobOffer, RemotePolicy
 from ..pipeline.enrich import detect_role_family
 from .candidature import Fiche, construire_fiche
@@ -302,14 +302,17 @@ Rends le JSON demande, en francais."""
             message=message,
         )
 
+    @staticmethod
+    def _dossier(offer: JobOffer) -> str:
+        """Nom du dossier de candidature. Un seul endroit le decide."""
+        return (f"{int(offer.score):03d}-{slugify(offer.company or offer.source)}"
+                f"-{slugify(offer.title)}")
+
     def _write_files(self, offer: JobOffer, ctx: dict[str, Any],
                      rendered: dict[str, Any],
                      imposees: list[str] | None = None) -> Path:
         """Ecrit le dossier de candidature. Rend le chemin du dossier."""
-        root = self.cfg.applications_path
-        name = (f"{int(offer.score):03d}-{slugify(offer.company or offer.source)}"
-                f"-{slugify(offer.title)}")
-        folder = root / name
+        folder = self.cfg.applications_path / self._dossier(offer)
         folder.mkdir(parents=True, exist_ok=True)
 
         (folder / "lettre.md").write_text(rendered["cover_letter"], encoding="utf-8")
@@ -320,9 +323,11 @@ Rends le JSON demande, en francais."""
             encoding="utf-8",
         )
         (folder / "offre.md").write_text(self._offer_sheet(offer), encoding="utf-8")
+        # Le CV avant la checklist : celle-ci verifie sa presence, et l'annoncer
+        # absent alors qu'il vient d'etre ecrit ferait douter du reste.
+        self._ecrire_cv_adapte(folder, offer, imposees)
         (folder / "checklist.md").write_text(self._checklist(offer, ctx, rendered),
                                              encoding="utf-8")
-        self._ecrire_cv_adapte(folder, offer, imposees)
         (folder / "offre.json").write_text(
             json.dumps(offer.model_dump(mode="json"), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -424,12 +429,20 @@ Rends le JSON demande, en francais."""
 
     def _checklist(self, offer: JobOffer, ctx: dict[str, Any],
                    rendered: dict[str, Any]) -> str:
-        docs = self.profile.documents or {}
-        cv = docs.get("cv_pdf") or "(cv_pdf non renseigne dans profile.yaml)"
-        cv_path = project_root() / cv if cv and not str(cv).startswith("(") else None
-        cv_state = ("présent" if cv_path and cv_path.exists()
-                    else "ABSENT — à ajouter avant envoi")
         gaps = rendered["gaps"]
+
+        # Le CV est genere dans ce meme dossier : la checklist pointe dessus,
+        # plus vers le PDF Canva d'origine ni vers un collage manuel.
+        cv_genere = (self.cfg.applications_path / self._dossier(offer)
+                     / "cv.pdf").exists()
+        etat_cv = ("`cv.pdf` de ce dossier" if cv_genere
+                   else "ABSENT — relancer `radar apply`, ou joindre votre CV a la main")
+
+        # Un demarrage immediat et une disponibilite lointaine se voient tout
+        # de suite cote client : autant le savoir avant d'ecrire.
+        texte = f"{offer.title} {offer.description}".lower()
+        urgent = any(m in texte for m in ("asap", "des que possible",
+                                          "immediat", "immédiat", "urgent"))
         return "\n".join([
             f"# Checklist avant envoi — {offer.title}",
             "",
@@ -440,9 +453,12 @@ Rends le JSON demande, en francais."""
             + (f" (offre : {offer.daily_rate} EUR)" if offer.daily_rate
                else " (offre : non précisé)"),
             f"- [ ] Disponibilité exacte : **{ctx['availability']}**",
-            f"- [ ] CV joint — `{cv}` : {cv_state}",
-            "- [ ] CV adapté : dupliquer le CV Canva, coller les deux blocs de "
-            "`cv-adapte.md` (profil + ordre des compétences), exporter en PDF",
+            f"- [ ] CV joint : {etat_cv}",
+            "- [ ] Lieu réel de la mission : l'annonce peut donner l'adresse du "
+            "recruteur, pas celle du client",
+            *(["- [ ] **Démarrage immédiat demandé** alors que vous êtes "
+               f"disponible {ctx['availability']} — le dire dès le premier "
+               "message plutôt qu'au troisième échange"] if urgent else []),
             "- [ ] Relecture orthographe et longueur",
             "- [ ] Aucune affirmation non vérifiable dans la lettre",
             "",

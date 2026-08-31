@@ -231,8 +231,18 @@ def parse_contract(*texts: str) -> ContractType:
 
 _FULL_REMOTE = ["full remote", "100% remote", "fully remote", "remote only",
                 "teletravail total", "100% teletravail", "anywhere", "worldwide"]
-_HYBRID = ["hybride", "hybrid", "teletravail partiel", "remote partiel",
-           "2 jours sur site", "3 jours sur site", "1 jour sur site"]
+_HYBRID = ["hybride", "hybrid", "teletravail partiel", "remote partiel"]
+
+# Un rythme chiffre de presence est hybride, pas du presentiel : "3 jours par
+# semaine sur site" laisse deux jours a distance. La liste litterale ne
+# suffisait pas -- elle ratait "3 jours/semaine sur site", et l'annonce
+# basculait alors en `onsite`, penalisee a tort pour un profil qui cherche
+# justement l'hybride.
+_RYTHME_HYBRIDE = re.compile(
+    r"\b[1-4]\s*(?:jours?|j)\s*(?:/|par\s+)?\s*(?:semaine|sem\b)?[^.\n]{0,12}"
+    r"(?:sur\s+site|presentiel|au\s+bureau)",
+    re.IGNORECASE,
+)
 _REMOTE_WORD = ["remote", "teletravail", "distanciel", "a distance"]
 _ONSITE = ["sur site", "on-site", "onsite", "presentiel", "no remote",
            "pas de teletravail"]
@@ -242,7 +252,7 @@ def parse_remote(*texts: str) -> RemotePolicy:
     blob = " ".join(t for t in texts if t)
     if contains_any(blob, _FULL_REMOTE):
         return RemotePolicy.FULL_REMOTE
-    if contains_any(blob, _HYBRID):
+    if contains_any(blob, _HYBRID) or _RYTHME_HYBRIDE.search(deaccent(blob)):
         return RemotePolicy.HYBRID
     if contains_any(blob, _ONSITE):
         return RemotePolicy.ONSITE
