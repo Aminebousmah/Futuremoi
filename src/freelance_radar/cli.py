@@ -425,6 +425,29 @@ def apply(
 #  track / report
 # --------------------------------------------------------------------------- #
 @app.command()
+def lettre(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
+    """Ecrit la lettre de motivation generique, independante de l'offre.
+
+    Le CV reste adapte offre par offre ; la lettre, elle, se copie telle
+    quelle. Hors ligne, aucun appel facture.
+    """
+    from .apply.lettre import ecrire_lettre_generique
+
+    cfg, profile, _ = _load(verbose)
+    chemin = ecrire_lettre_generique(profile, cfg.applications_path.parent
+                                     / "lettre-generique.md")
+    console.print(Panel.fit(
+        "\n".join([
+            "Lettre generique ecrite dans",
+            f"[bold]{chemin}[/]",
+            "",
+            "A copier telle quelle dans un formulaire, ou a retoucher a la marge.",
+        ]),
+        title="Lettre",
+    ))
+
+
+@app.command()
 def entretien(
     offer_id: str = typer.Argument(..., help="Offre a preparer (prefixe accepte)."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),

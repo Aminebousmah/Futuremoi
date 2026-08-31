@@ -8,12 +8,18 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+)
 from fastapi.templating import Jinja2Templates
 
 from ..apply import ApplicationGenerator, construire_fiche, rendre_markdown
 from ..apply.generator import slugify
 from ..apply.llm import LLMWriter
+from ..apply.pdf import generer_cv
 from ..config import Config, Profile, load_config, load_profile
 from ..models import ApplicationStatus
 from ..storage import Database
@@ -295,6 +301,37 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
             base.close()
         return RedirectResponse(f"/document/{offer_id}/entretien.md", status_code=303)
 
+    @app.post("/lettre-generique")
+    def generer_lettre_generique() -> RedirectResponse:
+        """Ecrit la lettre generique, une fois pour toutes les candidatures."""
+        from ..apply.lettre import ecrire_lettre_generique
+
+        ecrire_lettre_generique(
+            profile, cfg.applications_path.parent / "lettre-generique.md")
+        return RedirectResponse("/outils?lettre=ok", status_code=303)
+
+    @app.post("/offre/{offer_id}/cv")
+    def regenerer_cv(offer_id: str) -> RedirectResponse:
+        """Rejoue la seule composition du CV.
+
+        Utile apres avoir touche a `profile.yaml` : inutile de regenerer la
+        lettre et l'email, qui n'ont pas bouge. Hors ligne, rien n'est facture.
+        """
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+            dossier = cfg.applications_path / (
+                f"{int(offre.score):03d}-{slugify(offre.company or offre.source)}"
+                f"-{slugify(offre.title)}"
+            )
+            dossier.mkdir(parents=True, exist_ok=True)
+            generer_cv(offre, profile, dossier / "cv.pdf")
+        finally:
+            base.close()
+        return RedirectResponse(f"/document/{offer_id}/cv.pdf", status_code=303)
+
     @app.post("/campagne")
     def lancer_campagne() -> RedirectResponse:
         if campaign.start():
@@ -317,7 +354,8 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         est verifie comme etant sous le dossier des candidatures : sans cela,
         un `nom` du type `../../.env` sortirait de l'arborescence.
         """
-        autorises = {"lettre.md", "email.md", "checklist.md", "offre.md", "cv-adapte.md"}
+        autorises = {"lettre.md", "email.md", "checklist.md", "offre.md",
+                     "cv-adapte.md", "entretien.md", "cv.pdf"}
         if nom not in autorises:
             raise HTTPException(status_code=404, detail="Document inconnu")
 
@@ -334,6 +372,12 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         chemin = (Path(candidature.file_path) / nom).resolve()
         if not chemin.is_relative_to(racine) or not chemin.exists():
             raise HTTPException(status_code=404, detail="Document introuvable")
+
+        # Le CV est un PDF : il s'ouvre dans le lecteur du navigateur plutot
+        # que dans le gabarit de lecture, qui attend du texte.
+        if chemin.suffix == ".pdf":
+            return FileResponse(chemin, media_type="application/pdf",
+                                filename=f"CV - {profile.name}.pdf")
 
         return page(request, "document.html.j2", offre=offre, nom=nom,
                     contenu=chemin.read_text(encoding="utf-8"),

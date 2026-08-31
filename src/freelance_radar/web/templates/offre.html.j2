@@ -91,11 +91,21 @@
       <strong>{{ candidature.proposed_rate }} € HT/j</strong>
     </p>
     <p>
+      <a class="bouton primaire" style="border:none"
+         href="/document/{{ offre.id }}/cv.pdf">CV (PDF)</a>
       <a class="bouton" href="/document/{{ offre.id }}/lettre.md">Lettre</a>
       <a class="bouton" href="/document/{{ offre.id }}/email.md">Email</a>
-      <a class="bouton" href="/document/{{ offre.id }}/cv-adapte.md">CV adapté</a>
+      <a class="bouton" href="/document/{{ offre.id }}/cv-adapte.md">Note d'adaptation</a>
       <a class="bouton" href="/document/{{ offre.id }}/checklist.md">Checklist</a>
     </p>
+    {# Recomposer le seul CV : utile apres avoir touche a profile.yaml, sans
+       refaire la lettre et l'email qui n'ont pas bouge. #}
+    <form method="post" action="/offre/{{ offre.id }}/cv" class="compact">
+      <button type="submit">Régénérer le CV</button>
+      <span class="sub" style="font-size:.8rem">
+        après modification de votre profil — hors ligne
+      </span>
+    </form>
     <p class="bas" style="font-size:.8rem">Dossier : <code>{{ candidature.file_path }}</code></p>
   {% else %}
     <p class="sub" style="margin:.5rem 0">Aucun brouillon pour cette offre.</p>

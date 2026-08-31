@@ -44,6 +44,11 @@ from fpdf import FPDF
 from ..config import Profile
 from ..models import JobOffer
 from .cv import AdaptationCV, adapter_cv
+from .parcours import (
+    BlocParcours,
+    composer_experiences,
+    composer_projets,
+)
 
 # --------------------------------------------------------------------------- #
 #  Gabarit
@@ -275,33 +280,31 @@ def _profil(pdf: CVPdf, adaptation: AdaptationCV, profile: Profile) -> None:
     ])
 
 
-def _experiences(pdf: CVPdf, profile: Profile) -> None:
-    experiences = (profile.cv or {}).get("parcours", {}).get("experiences") or []
-    if not experiences:
+def _experiences(pdf: CVPdf, blocs: list[BlocParcours]) -> None:
+    if not blocs:
         return
     pdf.titre_section("Expériences professionnelles")
-    for i, exp in enumerate(experiences):
+    for i, exp in enumerate(blocs):
         if i:
             pdf.ln(_mm(8))
         pdf.set_font(POLICE, "B", T_POSTE)
         pdf.set_char_spacing(0.25)
-        pdf.multi_cell(0, H_POSTE, exp.get("poste", "").upper(),
-                       new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, H_POSTE, exp.titre.upper(), new_x="LMARGIN", new_y="NEXT")
 
         y = pdf.get_y()
         pdf.set_font(POLICE, "", T_POSTE)
-        pdf.cell(LARGEUR_UTILE / 2, H_POSTE, exp.get("client", "").upper())
+        pdf.cell(LARGEUR_UTILE / 2, H_POSTE, exp.sous_titre.upper())
         pdf.set_char_spacing(0)
         pdf.set_xy(MARGE + LARGEUR_UTILE / 2, y)
         pdf.set_font(POLICE, "I", T_POSTE)
         pdf.set_text_color(0x70, 0x6E, 0x6E)
-        droite = " ".join(x for x in (exp.get("periode"), exp.get("lieu")) if x)
+        droite = " ".join(x for x in (exp.periode, exp.lieu) if x)
         pdf.cell(LARGEUR_UTILE / 2, H_POSTE, droite, align="R",
                  new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(*ENCRE)
         pdf.ln(_mm(3))
-        for texte in exp.get("puces") or []:
-            pdf.puce(texte)
+        for puce in exp.puces:
+            pdf.puce(puce.texte)
 
 
 def _formation(pdf: CVPdf, profile: Profile) -> None:
@@ -320,26 +323,24 @@ def _formation(pdf: CVPdf, profile: Profile) -> None:
     pdf.set_char_spacing(0)
 
 
-def _projets(pdf: CVPdf, profile: Profile) -> None:
-    projets = (profile.cv or {}).get("parcours", {}).get("projets") or []
-    if not projets:
+def _projets(pdf: CVPdf, blocs: list[BlocParcours]) -> None:
+    if not blocs:
         return
     pdf.filet()
     pdf.titre_section("Projets")
-    for i, projet in enumerate(projets):
+    for i, projet in enumerate(blocs):
         if i:
             pdf.ln(_mm(8))
         pdf.set_char_spacing(0.25)
         pdf.set_font(POLICE, "B", T_POSTE)
-        pdf.multi_cell(0, H_POSTE, projet.get("nom", "").upper(),
-                       new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, H_POSTE, projet.titre.upper(), new_x="LMARGIN", new_y="NEXT")
         pdf.set_font(POLICE, "", T_POSTE)
-        pdf.multi_cell(0, H_POSTE, projet.get("sous_titre", "").upper(),
+        pdf.multi_cell(0, H_POSTE, projet.sous_titre.upper(),
                        new_x="LMARGIN", new_y="NEXT")
         pdf.set_char_spacing(0)
         pdf.ln(_mm(3))
-        for texte in projet.get("puces") or []:
-            pdf.puce(texte)
+        for puce in projet.puces:
+            pdf.puce(puce.texte)
 
 
 def _competences(pdf: CVPdf, adaptation: AdaptationCV) -> None:
@@ -375,9 +376,10 @@ def generer_cv(offer: JobOffer, profile: Profile, destination: Path,
     pdf.filet()
     _profil(pdf, adaptation, profile)
     pdf.filet()
-    _experiences(pdf, profile)
+    # Les puces et l'ordre des projets dependent de l'offre : cf. apply.parcours.
+    _experiences(pdf, composer_experiences(offer, profile))
     _formation(pdf, profile)
-    _projets(pdf, profile)
+    _projets(pdf, composer_projets(offer, profile))
     _competences(pdf, adaptation)
 
     destination.parent.mkdir(parents=True, exist_ok=True)

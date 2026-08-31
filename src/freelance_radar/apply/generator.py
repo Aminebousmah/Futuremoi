@@ -347,6 +347,21 @@ Rends le JSON demande, en francais."""
         for i, r in enumerate(adaptation.rubriques, 1):
             marque = " *(position fixe)*" if r.epinglee else ""
             lignes_md.append(f"{i}. **{r.label}**{marque} — {r.texte()}")
+        from .parcours import composer_experiences, composer_projets, resume_adaptation
+
+        experiences = composer_experiences(offer, self.profile)
+        projets = composer_projets(offer, self.profile)
+        mouvements = resume_adaptation(experiences, projets)
+        if mouvements:
+            lignes_md += ["", "## Parcours : ce qui a été mis en avant", ""]
+            lignes_md += mouvements
+            lignes_md += [
+                "",
+                "Les puces sont **réordonnées**, jamais réécrites. Une compétence",
+                "exigée que votre parcours ne porte pas reste un écart : la fiche",
+                "d'entretien la nomme au lieu de la maquiller.",
+            ]
+
         lignes_md += [
             "",
             "---",
