@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ..apply import ApplicationGenerator
+from ..apply.llm import LLMWriter
 from ..config import Config, Profile, load_config, load_profile
 from ..models import ApplicationStatus
 from ..storage import Database
@@ -159,16 +160,45 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
             base.close()
         return RedirectResponse(f"/offre/{offer_id}", status_code=303)
 
+    @app.get("/offre/{offer_id}/candidature/confirmer", response_class=HTMLResponse)
+    def confirmer_llm(request: Request, offer_id: str) -> HTMLResponse:
+        """Premiere validation : l'ecran qui annonce l'appel facture.
+
+        Cette page n'emet aucune requete. Elle expose le modele et le cout, et
+        n'ouvre le chemin LLM que via le POST qu'elle contient.
+        """
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+        finally:
+            base.close()
+        sonde = LLMWriter(max_words=cfg.application.max_words, consent=True)
+        blocage = (None if cfg.application.use_llm
+                   else "moteur LLM desactive dans config.yaml")
+        return page(request, "confirmation-llm.html.j2", offre=offre,
+                    modele=sonde.model, blocage=blocage or sonde.blocked_reason())
+
     @app.post("/offre/{offer_id}/candidature")
-    def generer_candidature(offer_id: str, moteur: str = Form("auto")) -> RedirectResponse:
-        """Genere un BROUILLON. Aucun envoi : c'est la regle du projet."""
+    def generer_candidature(offer_id: str, moteur: str = Form("template"),
+                            confirmation: str = Form("")) -> RedirectResponse:
+        """Genere un BROUILLON. Aucun envoi : c'est la regle du projet.
+
+        Le moteur LLM exige `moteur=llm` ET `confirmation=oui` : le premier
+        vient du bouton, le second de l'ecran de confirmation. Un POST forge
+        sans passer par cet ecran retombe sur les templates.
+        """
+        consent = (moteur == "llm" and confirmation == "oui"
+                   and cfg.application.use_llm)
         base = db()
         try:
             offre = base.get_offer(offer_id)
             if offre is None:
                 raise HTTPException(status_code=404, detail="Offre introuvable")
             generateur = ApplicationGenerator(cfg, profile)
-            candidature = generateur.generate(offre, force_template=(moteur == "template"))
+            candidature = generateur.generate(
+                offre, force_template=not consent, consent_llm=consent)
             base.save_application(candidature)
         finally:
             base.close()

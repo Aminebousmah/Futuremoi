@@ -199,10 +199,17 @@ sources:
     # "donnees" rend presque le double de "data" — le catalogue est en francais.
     queries: ["data analyst", "business intelligence", "power bi",
               "donnees", "decisionnel", "data"]
-    # Code du referentiel France Travail. LIB = profession liberale, le seul
-    # code qui corresponde vraiment a du freelance ; MIS est de l'interim.
-    # Mettre "" pour tout voir, ou "LIB,CDD" pour elargir.
-    type_contrat: LIB
+    # Code du referentiel France Travail. LIB = profession liberale.
+    #
+    # L'hypothese "des missions freelance se cachent dans les CDD" a ete testee
+    # le 31/08/2026 : passer a "LIB,CDD,MIS" fait monter la collecte de 20 a
+    # 316 annonces, dont 206 CDD -- et `pipeline.freelance` n'en requalifie
+    # AUCUNE. Les descriptions ne mentionnent ni TJM ni statut independant :
+    # ce sont de vrais CDD salaries. Seize fois plus de requetes pour zero
+    # offre retenue, d'ou le retour a LIB.
+    # A retester si le catalogue evolue : `radar scrape -s francetravail
+    # --dry-run --tout --explain` donne le comptage.
+    type_contrat: "LIB"
     # departement: "75"   # optionnel : restreindre a un departement
     max_results: 150      # plafond impose par l'API sur une pagination
 
@@ -233,7 +240,11 @@ application:
   tone: "professionnel, direct, oriente resultats"
   max_words: 320
   output_dir: output/applications
-  # Utiliser un LLM si ANTHROPIC_API_KEY est defini, sinon templates Jinja2
+  # Autorise le moteur LLM, sans jamais le declencher seul : chaque
+  # generation demande en plus un accord explicite (`radar apply --llm`,
+  # ou la double validation de l'interface web). Une cle presente dans
+  # .env ne suffit donc jamais a produire un appel facture.
+  # A false, le moteur LLM est indisponible meme avec accord.
   use_llm: true
 
 storage:

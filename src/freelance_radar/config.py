@@ -80,6 +80,8 @@ class ApplicationConfig(BaseModel):
     tone: str = "professionnel"
     max_words: int = 320
     output_dir: str = "output/applications"
+    # Autorise le moteur LLM. Ne suffit pas a declencher un appel : chaque
+    # generation exige en plus un consentement explicite (cf. apply.llm).
     use_llm: bool = True
 
 

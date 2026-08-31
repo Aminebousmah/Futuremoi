@@ -1,8 +1,19 @@
-"""Redaction assistee par Claude (optionnelle).
+"""Redaction assistee par Claude (optionnelle, et jamais implicite).
 
-Sans ANTHROPIC_API_KEY, `LLMWriter.available()` rend False et le generateur
-bascule sur les templates Jinja2 : l'outil reste pleinement fonctionnel hors
-ligne. Le SDK `anthropic` est une dependance optionnelle (extra `llm`).
+Deux verrous, dans cet ordre :
+
+1. **Consentement explicite.** Presenter une cle API n'autorise rien. Aucune
+   requete n'est emise si `consent=False` : c'est le defaut, et il faut un
+   geste delibere pour le lever (`radar apply --llm`, ou la double validation
+   de l'interface web). Une cle presente dans `.env` sert a beaucoup de
+   choses ; elle ne doit jamais suffire a declencher une facturation.
+2. **Modele economique.** Le defaut est Haiku, pas Opus : la redaction d'une
+   lettre ne justifie pas le modele le plus cher. `ANTHROPIC_MODEL` permet de
+   changer d'avis ponctuellement.
+
+Sans consentement -- ou sans cle, ou sans le SDK -- le generateur bascule sur
+les templates Jinja2 : l'outil reste pleinement fonctionnel hors ligne. Le SDK
+`anthropic` est une dependance optionnelle (extra `llm`).
 """
 
 from __future__ import annotations
@@ -15,7 +26,10 @@ from ..config import env
 
 log = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-opus-5"
+# Haiku : une lettre de motivation est une tache de redaction courte et
+# cadree par un schema. Opus coute environ vingt fois plus pour un gain nul
+# ici. Surchargeable par ANTHROPIC_MODEL si un cas le justifie.
+DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 
 # Schema de sortie : garantit un JSON exploitable sans post-traitement fragile.
 RESPONSE_SCHEMA: dict[str, Any] = {
@@ -70,13 +84,21 @@ Regles de redaction :
 class LLMWriter:
     """Enveloppe minimale autour du SDK Anthropic."""
 
-    def __init__(self, model: str | None = None, max_words: int = 320):
+    def __init__(self, model: str | None = None, max_words: int = 320,
+                 consent: bool = False):
         self.model = model or env("ANTHROPIC_MODEL", DEFAULT_MODEL)
         self.max_words = max_words
+        # Doit etre pose a chaque appel par l'appelant qui a recueilli l'accord.
+        # Aucune valeur de configuration ne peut le mettre a True durablement :
+        # c'est ce qui distingue un consentement d'un reglage oublie.
+        self.consent = consent
         self._client = None
 
     # ------------------------------------------------------------------ #
     def available(self) -> bool:
+        """Vrai seulement si l'appel est autorise ici et maintenant."""
+        if not self.consent:
+            return False
         if not env("ANTHROPIC_API_KEY"):
             return False
         try:
@@ -85,6 +107,18 @@ class LLMWriter:
             log.info("SDK anthropic absent : `pip install anthropic` pour activer le LLM.")
             return False
         return True
+
+    def blocked_reason(self) -> str | None:
+        """Explique pourquoi le LLM ne sera pas utilise, pour l'afficher a l'ecran."""
+        if not self.consent:
+            return "appel non autorise (aucun consentement pour cette generation)"
+        if not env("ANTHROPIC_API_KEY"):
+            return "ANTHROPIC_API_KEY absente de .env"
+        try:
+            import anthropic  # noqa: F401
+        except ImportError:
+            return "SDK anthropic non installe (pip install anthropic)"
+        return None
 
     def _get_client(self):
         if self._client is None:
@@ -96,9 +130,17 @@ class LLMWriter:
     # ------------------------------------------------------------------ #
     def write(self, prompt: str) -> dict[str, Any] | None:
         """Rend le dict conforme a RESPONSE_SCHEMA, ou None si l'appel echoue."""
+        # Double verrou : `available()` couvre deja le consentement, mais le
+        # test est reecrit ici pour qu'aucune refonte de `available()` ne
+        # puisse ouvrir un chemin d'appel par inadvertance.
+        if not self.consent:
+            log.info("Appel LLM refuse : consentement non donne.")
+            return None
         if not self.available():
             return None
 
+        log.warning("Appel facture a l'API Anthropic (modele %s), avec accord explicite.",
+                    self.model)
         client = self._get_client()
         params: dict[str, Any] = {
             "model": self.model,

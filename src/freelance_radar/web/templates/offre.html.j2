@@ -96,17 +96,25 @@
     </a>
   </p>
 
+  {# Deux chemins distincts, jamais un menu deroulant : le choix par defaut ne
+     doit pas pouvoir declencher un appel facture par inadvertance. #}
   <form class="enligne" method="post" action="/offre/{{ offre.id }}/candidature">
-    <select name="moteur">
-      <option value="auto">Moteur automatique (LLM si disponible)</option>
-      <option value="template">Templates uniquement</option>
-    </select>
+    <input type="hidden" name="moteur" value="template">
     <button type="submit" class="primaire">
       {{ "Regénérer le brouillon" if candidature else "Générer un brouillon" }}
     </button>
   </form>
   <p class="bas" style="font-size:.8rem;margin:.6rem 0 0">
-    Génère des fichiers à relire. Rien n'est envoyé.
+    Génère des fichiers à relire, hors ligne. Rien n'est envoyé, rien n'est facturé.
+  </p>
+
+  <p style="margin:.9rem 0 0">
+    <a class="bouton" href="/offre/{{ offre.id }}/candidature/confirmer">
+      Rédiger avec Claude — appel facturé…
+    </a>
+  </p>
+  <p class="bas" style="font-size:.8rem;margin:.4rem 0 0">
+    Demande une confirmation avant d'utiliser votre clé API.
   </p>
 </div>
 

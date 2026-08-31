@@ -327,6 +327,11 @@ def apply(
     limit: int = typer.Option(10, "--limit", "-n", help="Plafond en mode --all."),
     template_only: bool = typer.Option(
         False, "--template", help="Forcer les templates (sans LLM)."),
+    use_llm: bool = typer.Option(
+        False, "--llm",
+        help="Autoriser un appel FACTURE a l'API Anthropic pour cette commande."),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Confirmer l'appel LLM sans invite."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Genere un dossier de candidature (brouillon) pour une ou plusieurs offres."""
@@ -353,12 +358,36 @@ def apply(
         raise typer.Exit()
 
     generator = ApplicationGenerator(cfg, profile)
-    engine = "templates" if (template_only or not generator.writer.available()) else "LLM"
+
+    # Deuxieme validation : --llm ouvre la porte, la confirmation la franchit.
+    # Sans elle, la commande retombe sur les templates plutot que d'echouer :
+    # un dossier de candidature reste produit dans tous les cas.
+    consent = use_llm and not template_only and cfg.application.use_llm
+    if consent:
+        generator.writer.consent = True
+        blocage = generator.writer.blocked_reason()
+        if blocage:
+            console.print(f"[yellow]LLM indisponible ({blocage}) : templates.[/]")
+            consent = False
+        elif not yes:
+            console.print(Panel.fit(
+                "\n".join([
+                    "[bold yellow]Appel facture a l'API Anthropic[/]",
+                    f"Modele : [bold]{generator.writer.model}[/]",
+                    f"Offres : [bold]{len(targets)}[/] (un appel par offre)",
+                ]),
+                title="Confirmation",
+            ))
+            consent = typer.confirm("Lancer les appels ?", default=False)
+        generator.writer.consent = consent
+
+    engine = "LLM" if consent else "templates"
     console.print(f"Moteur de redaction : [bold]{engine}[/]\n")
 
     for offer in targets:
         with console.status(f"Redaction — {offer.title[:50]}..."):
-            application = generator.generate(offer, force_template=template_only)
+            application = generator.generate(
+                offer, force_template=template_only, consent_llm=consent)
             db.save_application(application)
         console.print(
             f"[green]OK[/] [{offer.score:.0f}] {offer.title[:55]}\n"

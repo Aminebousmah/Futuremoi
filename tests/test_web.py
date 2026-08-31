@@ -310,3 +310,65 @@ class TestFavoriRemplissage:
         assert r.status_code == 200
         assert "javascript:" in r.text
         assert "ne soumet jamais" in r.text
+
+
+class TestConsentementLLM:
+    """La generation par defaut ne doit jamais toucher a l'API Anthropic."""
+
+    def test_bouton_par_defaut_hors_ligne(self, client, offre_en_base):
+        """Le bouton principal poste moteur=template : aucun appel possible."""
+        page = client.get(f"/offre/{offre_en_base.id}").text
+        assert 'name="moteur" value="template"' in page
+        assert "candidature/confirmer" in page
+
+    def test_ecran_annonce_le_cout(self, client, offre_en_base):
+        r = client.get(f"/offre/{offre_en_base.id}/candidature/confirmer")
+        assert r.status_code == 200
+        assert "factur" in r.text.lower()
+
+    def test_ecran_sans_moteur_actif_ne_propose_rien(self, client, offre_en_base):
+        """use_llm=false dans la config : pas de bouton, donc pas d'appel possible."""
+        r = client.get(f"/offre/{offre_en_base.id}/candidature/confirmer")
+        assert 'name="confirmation"' not in r.text
+        assert "desactive" in r.text.lower()
+
+    def test_ecran_porte_le_second_jeton(self, cfg, profile, offre_en_base, monkeypatch):
+        """Moteur autorise et disponible : l'ecran expose la validation finale."""
+        from freelance_radar.apply.llm import LLMWriter
+
+        cfg.application.use_llm = True
+        monkeypatch.setattr(LLMWriter, "blocked_reason", lambda self: None)
+        client = TestClient(create_app(cfg, profile))
+
+        r = client.get(f"/offre/{offre_en_base.id}/candidature/confirmer")
+        assert r.status_code == 200
+        assert 'name="confirmation" value="oui"' in r.text
+        assert 'name="moteur" value="llm"' in r.text
+
+    def test_confirmation_offre_inconnue(self, client):
+        assert client.get("/offre/inconnue/candidature/confirmer").status_code == 404
+
+    def test_post_sans_confirmation_reste_hors_ligne(
+        self, client, offre_en_base, monkeypatch
+    ):
+        """Un POST forge avec moteur=llm mais sans jeton retombe sur les templates."""
+        from freelance_radar.apply.llm import LLMWriter
+
+        def interdit(self, prompt):  # pragma: no cover - ne doit jamais s'executer
+            raise AssertionError("appel LLM declenche sans confirmation")
+
+        monkeypatch.setattr(LLMWriter, "write", interdit)
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={"moteur": "llm"}, follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_post_par_defaut_reste_hors_ligne(self, client, offre_en_base, monkeypatch):
+        from freelance_radar.apply.llm import LLMWriter
+
+        def interdit(self, prompt):  # pragma: no cover - ne doit jamais s'executer
+            raise AssertionError("appel LLM declenche par la generation par defaut")
+
+        monkeypatch.setattr(LLMWriter, "write", interdit)
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={}, follow_redirects=False)
+        assert r.status_code == 303

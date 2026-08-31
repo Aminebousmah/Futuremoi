@@ -64,6 +64,7 @@ class ApplicationGenerator:
             trim_blocks=True,
             lstrip_blocks=True,
         )
+        # consent reste a False : il est pose generation par generation.
         self.writer = LLMWriter(max_words=cfg.application.max_words)
 
     # ------------------------------------------------------------------ #
@@ -247,11 +248,19 @@ Rends le JSON demande, en francais."""
     # ------------------------------------------------------------------ #
     #  Point d'entree
     # ------------------------------------------------------------------ #
-    def generate(self, offer: JobOffer, *, force_template: bool = False) -> Application:
+    def generate(self, offer: JobOffer, *, force_template: bool = False,
+                 consent_llm: bool = False) -> Application:
+        """Produit le dossier de candidature.
+
+        `consent_llm` est le seul chemin vers une requete facturee. Il n'a pas
+        de valeur par defaut heritee de la configuration : `use_llm` autorise
+        le moteur, `consent_llm` autorise l'appel. Les deux sont necessaires.
+        """
         ctx = self._context(offer)
 
         rendered = None
-        if self.cfg.application.use_llm and not force_template:
+        self.writer.consent = consent_llm
+        if self.cfg.application.use_llm and consent_llm and not force_template:
             rendered = self._render_llm(ctx)
         if rendered is None:
             rendered = self._render_templates(ctx)
