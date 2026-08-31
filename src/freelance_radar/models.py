@@ -126,6 +126,22 @@ class JobOffer(BaseModel):
         return (datetime.now(timezone.utc) - published).total_seconds() / 86400
 
     @property
+    def description_tronquee(self) -> bool:
+        """Vrai quand la source n'a livre qu'un extrait de l'annonce.
+
+        L'API Adzuna plafonne `description` a 500 caracteres et termine par
+        une ellipse ; il n'existe pas de champ complet, et leur site bloque
+        les clients automatises. Sur 150 offres en base, ce suffixe separe
+        parfaitement Adzuna (118) des autres sources (0).
+
+        L'enjeu n'est pas cosmetique : une competence exigee peut se trouver
+        dans le tiers invisible. Un cas mesure -- "Microsoft Fabric
+        souhaitable" absent de l'extrait, donc absent du CV compose. Mieux
+        vaut annoncer l'angle mort que laisser croire a une lecture complete.
+        """
+        return self.description.rstrip().endswith("…")
+
+    @property
     def daily_rate(self) -> int | None:
         """TJM representatif : la borne haute si connue, sinon la borne basse."""
         return self.daily_rate_max or self.daily_rate_min
