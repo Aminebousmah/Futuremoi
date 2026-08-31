@@ -20,7 +20,7 @@ L'outil fait trois choses, dans cet ordre :
 ## Installation
 
 ```bash
-python -m venv .venv && .venv\Scripts\activate && pip install -e .
+python -m venv .venv && .venv\Scripts\python -m pip install -e ".[web]"
 ```
 
 Puis :
@@ -50,9 +50,14 @@ Une interface locale permet de tout faire sans terminal : parcourir et filtrer l
 offres, lire le détail d'un score, générer un brouillon, changer un statut et
 lancer une campagne.
 
+**Le plus simple** : double-cliquez **`radar-web.bat`** à la racine du projet.
+Il démarre l'interface et ouvre votre navigateur tout seul. Pour arrêter,
+fermez la fenêtre noire.
+
+En ligne de commande, l'équivalent est :
+
 ```bash
-.
-adar.bat web
+.\radar.bat web
 ```
 
 Puis ouvrez **http://127.0.0.1:8000**. `Ctrl+C` arrête le serveur.
@@ -110,20 +115,17 @@ Windows, clic droit sur le dossier → « Ouvrir dans le Terminal ».
 Le raccourci `radar.bat` évite d'activer l'environnement virtuel :
 
 ```bash
-.
-adar.bat list --min-score 65
+.\radar.bat list --min-score 65
 ```
 
 Sans argument, il affiche la liste des commandes. L'équivalent sans raccourci est
-`.venv\Scripts
-adar.exe list --min-score 65`.
+`.venv\Scripts\python -m freelance_radar.cli list --min-score 65`.
 
 Pour une vue visuelle plutôt qu'un terminal, générez le rapport et ouvrez-le dans
 votre navigateur :
 
 ```bash
-.
-adar.bat report -f html
+.\radar.bat report -f html
 ```
 
 Le fichier atterrit dans `output/rapport.html` — un double-clic suffit ensuite, et
@@ -204,6 +206,7 @@ freelance-radar/
 │   │   ├── state.py           # suivi de la campagne lancée en tâche de fond
 │   │   └── templates/         # pages HTML
 ├── radar.bat                  # raccourci CLI (sans activer le venv)
+├── radar-web.bat              # double-clic : interface + navigateur
 ├── docs/cv-canva.md           # adapter le CV Canva : mode d'emploi et limites
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
