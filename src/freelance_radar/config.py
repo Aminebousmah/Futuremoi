@@ -126,6 +126,9 @@ class Profile(BaseModel):
     references: list[dict[str, Any]] = Field(default_factory=list)
     documents: dict[str, Any] = Field(default_factory=dict)
     preferences: dict[str, Any] = Field(default_factory=dict)
+    # Inventaire d'outils et rubriques fixes du CV, utilises pour composer
+    # la section competences en fonction de l'offre.
+    cv: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def name(self) -> str:

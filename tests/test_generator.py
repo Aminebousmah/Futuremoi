@@ -89,15 +89,34 @@ class TestGeneration:
 
 
 class TestAdaptationCV:
-    """Adaptation du CV : ordre des rubriques et paragraphe de profil."""
+    """Le CV est COMPOSE a partir de l'offre, pas simplement reordonne.
+
+    Le generateur lit ce que l'offre demande, le traduit en outils de
+    l'inventaire du profil, et nomme les rubriques en consequence.
+    """
 
     @staticmethod
     def _offre_bi():
         return make_offer(
             title="Consultant Power BI senior",
-            description="Refonte des tableaux de bord décisionnels.",
-            skills=["Power BI", "Tableau", "Reporting"],
+            description="Concevoir des tableaux de bord et faire evoluer les rapports.",
+            skills=["Power BI", "Tableau"],
         )
+
+    @staticmethod
+    def _offre_ml():
+        return make_offer(
+            title="Data Scientist",
+            description="Modeles predictifs et scoring, machine learning en production.",
+            skills=["Machine Learning", "Python"],
+        )
+
+    def test_les_rubriques_dependent_de_l_offre(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+
+        bi = [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques]
+        ml = [r.label for r in adapter_cv(self._offre_ml(), profile).rubriques]
+        assert bi != ml, "deux offres differentes doivent donner deux CV differents"
 
     def test_la_rubrique_demandee_passe_en_tete(self, cfg, profile):
         from freelance_radar.apply.cv import adapter_cv
@@ -106,28 +125,58 @@ class TestAdaptationCV:
         mobiles = [r.label for r in a.rubriques if not r.epinglee]
         assert mobiles[0] == "Data Visualisation & BI"
 
-    def test_les_rubriques_epinglees_ne_bougent_pas(self, cfg, profile):
-        from freelance_radar.apply.cv import RUBRIQUES_CV, adapter_cv
+    def test_un_besoin_implicite_apparait(self, cfg, profile):
+        # Une mission BI suppose un modele semantique, meme si l'annonce ne le
+        # nomme pas : c'est ce qui permet de repondre au-dela de ses mots.
+        from freelance_radar.apply.cv import adapter_cv
+
+        labels = [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques]
+        assert "Modélisation & sémantique" in labels
+
+    def test_les_rubriques_fixes_restent_en_tete(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
 
         a = adapter_cv(self._offre_bi(), profile)
-        positions = [i for i, r in enumerate(a.rubriques) if r.epinglee]
-        attendues = [i for i, r in enumerate(RUBRIQUES_CV) if r.epinglee]
-        assert positions == attendues
+        assert [r.label for r in a.rubriques[:2]] == ["Competences transverses", "Langues"]
+        assert all(r.epinglee for r in a.rubriques[:2])
 
-    def test_aucune_rubrique_perdue_ni_dupliquee(self, cfg, profile):
-        from freelance_radar.apply.cv import RUBRIQUES_CV, adapter_cv
+    def test_aucun_outil_invente(self, cfg, profile):
+        # Le generateur ne peut puiser que dans l'inventaire declare.
+        from freelance_radar.apply.cv import adapter_cv
 
+        inventaire = {o for liste in profile.cv["outils"].values() for o in liste}
+        inventaire |= {o for r in profile.cv["rubriques_fixes"] for o in r["outils"]}
+        for r in adapter_cv(self._offre_ml(), profile).rubriques:
+            for outil in r.outils:
+                assert outil in inventaire, outil
+
+    def test_aucun_outil_repete_entre_rubriques(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+
+        vus = [o for r in adapter_cv(self._offre_bi(), profile).rubriques
+               if not r.epinglee for o in r.outils]
+        assert len(vus) == len(set(vus))
+
+    def test_le_bloc_tient_dans_la_maquette(self, cfg, profile):
+        # Le CV reserve 7 lignes aux competences : deux fixes, cinq composables.
+        from freelance_radar.apply.cv import RUBRIQUES_MOBILES, adapter_cv
+
+        for offre in (self._offre_bi(), self._offre_ml()):
+            a = adapter_cv(offre, profile)
+            assert len([r for r in a.rubriques if not r.epinglee]) <= RUBRIQUES_MOBILES
+
+    def test_profil_sans_inventaire_ne_casse_pas(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+
+        profile.cv = {}
         a = adapter_cv(self._offre_bi(), profile)
-        assert sorted(r.label for r in a.rubriques) == sorted(r.label for r in RUBRIQUES_CV)
+        assert a.rubriques == [] and a.profil is not None
 
     def test_pas_de_fuite_d_etat_entre_deux_offres(self, cfg, profile):
-        # RUBRIQUES_CV est partage : sans copie, le score d'une offre
-        # contaminerait le classement de la suivante.
         from freelance_radar.apply.cv import adapter_cv
 
         bi = [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques]
-        cloud = make_offer(title="Data Engineer", skills=["AWS", "Docker", "Airflow"])
-        adapter_cv(cloud, profile)
+        adapter_cv(self._offre_ml(), profile)
         assert [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques] == bi
 
     def test_le_profil_cite_les_competences_communes(self, cfg, profile):

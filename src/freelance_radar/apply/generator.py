@@ -310,7 +310,7 @@ Rends le JSON demande, en francais."""
             "",
             adaptation.profil.texte(),
             "",
-            "## Ordre des rubriques de compétences",
+            "## Compétences, composées pour cette offre",
             "",
         ]
         for i, r in enumerate(adaptation.rubriques, 1):
@@ -320,8 +320,12 @@ Rends le JSON demande, en francais."""
             "",
             "---",
             "",
-            "Seuls l'ordre des rubriques et le paragraphe de profil changent.",
-            "Les expériences, les chiffres et les dates sont laissés intacts.",
+            "Les rubriques ci-dessus sont **composées à partir de cette offre** :",
+            "leur intitulé, leur contenu et leur ordre changent d'une mission à",
+            "l'autre. Les outils proviennent uniquement de votre inventaire",
+            "(`config/profile.yaml`, section `cv.outils`) — rien n'est inventé.",
+            "",
+            "Vos expériences, vos chiffres et vos dates ne sont jamais touchés.",
         ]
         (folder / "cv-adapte.md").write_text(
             "\n".join(lignes_md) + "\n", encoding="utf-8"

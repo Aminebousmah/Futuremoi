@@ -45,6 +45,23 @@ def profile() -> Profile:
         "references": [{"client": "Retailer", "role": "Data Engineer", "period": "2024",
                         "stack": ["dbt", "Snowflake"], "achievement": "Refonte du DWH."}],
         "documents": {"cv_pdf": "assets/CV.pdf"},
+        "cv": {
+            "outils": {
+                "modelisation": ["Power BI", "DAX", "SQL"],
+                "dataviz": ["Power BI", "Tableau", "Excel"],
+                "preparation": ["Power Query", "SQL", "dbt"],
+                "pipelines": ["Airflow", "dbt", "Snowflake"],
+                "ml": ["Scikit-learn", "MLflow"],
+                "programmation": ["Python", "SQL", "R"],
+                "pilotage": ["Analyse metier", "Cadrage du besoin"],
+                "qualite": ["Controles qualite", "dbt"],
+                "cloud": ["AWS", "Docker"],
+            },
+            "rubriques_fixes": [
+                {"label": "Competences transverses", "outils": ["Agile", "Communication"]},
+                {"label": "Langues", "outils": ["Francais", "Anglais"]},
+            ],
+        },
     })
 
 
