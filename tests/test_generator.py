@@ -306,3 +306,78 @@ class TestFiche:
         fiche = ApplicationGenerator(cfg, profile).fiche_candidature(offre)
         experience = next(c.valeur for c in fiche.questions if "expérience sur" in c.libelle)
         assert "Retailer" in experience      # la seule reference du profil de test
+
+
+class TestCompetencesAttendues:
+    """Le titre du poste compte, pas seulement le corps de l'annonce.
+
+    Beaucoup de sources tronquent leur texte — l'API Adzuna rend 500
+    caracteres. Sur une annonce "Data engineer" ainsi coupee, aucun outil
+    n'etait cite, toutes les competences tombaient a zero, et la composition
+    se rabattait sur le haut de l'inventaire : le CV d'une mission Data
+    Engineer n'affichait ni dbt ni Airflow.
+    """
+
+    def test_le_titre_fait_remonter_la_pile_du_metier(self, profile):
+        from freelance_radar.apply.cv import composer_rubriques
+
+        # Annonce volontairement muette : tout doit venir du titre.
+        offre = make_offer(title="Data engineer",
+                           description="Mission au sein de la direction data.",
+                           skills=[])
+        outils = {o for r in composer_rubriques(offre, profile) for o in r.outils}
+        assert {"dbt", "Airflow"} & outils, outils
+
+    def test_le_metier_oriente_le_classement(self, profile):
+        """Sur la meme annonce muette, le titre change l'ordre des competences.
+
+        On compare les rangs plutot que la presence : sur un inventaire reduit,
+        le remplissage de fin de liste ramene de toute facon tout le monde.
+        """
+        from freelance_radar.apply.cv import classer_competences
+
+        texte = "Mission au sein de la direction data."
+        analyste = {c: s for _, c, s in classer_competences(
+            make_offer(title="Data analyst", description=texte, skills=[]), profile)}
+        engineer = {c: s for _, c, s in classer_competences(
+            make_offer(title="Data engineer", description=texte, skills=[]), profile)}
+
+        assert analyste["Power BI"] > analyste["Airflow"]
+        assert engineer["Airflow"] > engineer["Power BI"]
+
+    def test_une_mention_explicite_pese_plus_que_l_attendu(self, profile):
+        """Le titre suggere ; l'annonce qui cite un outil doit primer."""
+        from freelance_radar.apply.cv import classer_competences
+
+        offre = make_offer(
+            title="Data engineer",
+            description="Nous cherchons un expert Power BI. Power BI au quotidien.",
+            skills=["Power BI"])
+        scores = {c: s for _, c, s in classer_competences(offre, profile)}
+        assert scores["Power BI"] > scores["Airflow"]
+
+    def test_famille_inconnue_ne_casse_rien(self, profile):
+        from freelance_radar.apply.cv import classer_competences
+
+        offre = make_offer(title="Chargé de mission", description="", skills=[])
+        assert classer_competences(offre, profile)  # ne leve pas, rend l'inventaire
+
+    def test_les_intitules_attendus_existent_dans_l_inventaire_reel(self):
+        """Meme garde-fou que pour la fiche d'entretien : un nom mal
+        orthographie ne declencherait jamais, sans erreur visible.
+        """
+        import pytest
+
+        from freelance_radar.config import load_profile, project_root
+        from freelance_radar.pipeline.enrich import COMPETENCES_ATTENDUES
+
+        if not (project_root() / "config" / "profile.yaml").exists():
+            pytest.skip("profile.yaml absent (fichier personnel, hors depot)")
+
+        inventaire = {c for outils
+                      in (load_profile().cv or {}).get("competences", {}).values()
+                      for c in outils}
+        assert inventaire, "inventaire vide : le test ne prouverait rien"
+        for famille, attendues in COMPETENCES_ATTENDUES.items():
+            inconnues = sorted(set(attendues) - inventaire)
+            assert not inconnues, f"{famille} : intitulés hors inventaire {inconnues}"

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 
 from ..config import Profile
 from ..models import JobOffer
-from ..pipeline.enrich import detect_role_family
+from ..pipeline.enrich import competences_attendues, detect_role_family
 from ..pipeline.normalize import normalize_key
 
 
@@ -76,6 +76,9 @@ COMPETENCES_RETENUES = 12      # ce qu'on met en avant, pas tout ce qu'on sait
 COMPETENCES_PAR_RUBRIQUE = 4   # au-dela, une rubrique ecrase les autres
 MINIMUM_PAR_RUBRIQUE = 2       # une ligne d'un seul element fait pauvre
 TRANSVERSES_RETENUES = 4
+# Bonus d'une competence attendue par le metier mais absente du texte.
+# Sous la mention explicite (1.5 minimum) : le titre suggere, il n'affirme pas.
+BONUS_ATTENDUE = 1.2
 
 # Formulations alternatives d'une meme competence, cote annonce. On ne liste
 # que celles qu'une recherche de sous-chaine ne trouverait pas seule.
@@ -180,14 +183,20 @@ def _motifs(competence: str) -> list[str]:
 
 
 def _pertinence(competence: str, titre: str, corps: str,
-                demandees: set[str]) -> float:
+                demandees: set[str], attendues: set[str] = frozenset()) -> float:
     """A quel point l'offre reclame cette competence.
 
     Le titre pese lourd : c'est la que se dit le coeur du poste. Les
     competences reconnues par la taxonomie du pipeline comptent aussi, meme
     formulees autrement dans le texte.
+
+    `attendues` porte ce que l'intitule implique sans le dire. Son bonus est
+    volontairement plus faible qu'une mention explicite : une annonce qui cite
+    un outil reste plus probante qu'un metier qui le suppose.
     """
     score = 0.0
+    if normalize_key(competence) in attendues:
+        score += BONUS_ATTENDUE
     for motif in _motifs(competence):
         borne = rf"\b{re.escape(motif)}\b" if len(motif) <= 4 else re.escape(motif)
         if re.search(borne, titre):
@@ -211,10 +220,15 @@ def classer_competences(offer: JobOffer, profile: Profile) -> list[tuple[str, st
     demandees |= {normalize_key(s)
                   for s in ((offer.score_detail or {}).get("_matched_skills") or [])}
 
+    # Ce que le metier annonce implique, meme si le texte n'en dit rien : sur
+    # une annonce tronquee, c'est la seule chose exploitable.
+    famille = detect_role_family(offer.title, offer.description)
+    attendues = {normalize_key(c) for c in competences_attendues(famille)}
+
     classees = []
     for categorie, liste in _competences(profile).items():
         for rang, competence in enumerate(liste):
-            score = _pertinence(competence, titre, corps, demandees)
+            score = _pertinence(competence, titre, corps, demandees, attendues)
             # A score egal, l'ordre de l'inventaire departage : il place en
             # tete les outils les plus courants du metier.
             classees.append((categorie, competence, score - rang * 0.01))
