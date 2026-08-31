@@ -11,7 +11,8 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from ..apply import ApplicationGenerator
+from ..apply import ApplicationGenerator, construire_fiche, rendre_markdown
+from ..apply.generator import slugify
 from ..apply.llm import LLMWriter
 from ..config import Config, Profile, load_config, load_profile
 from ..models import ApplicationStatus
@@ -269,6 +270,30 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
             campaign.finish(error=str(exc))
         finally:
             base.close()
+
+    @app.post("/offre/{offer_id}/entretien")
+    def generer_entretien(offer_id: str) -> RedirectResponse:
+        """Ecrit la fiche de preparation d'entretien.
+
+        Entierement hors ligne : aucune cle, aucun appel facture. La fiche
+        rejoint le dossier de candidature, qu'elle cree au besoin.
+        """
+        base = db()
+        try:
+            offre = base.get_offer(offer_id)
+            if offre is None:
+                raise HTTPException(status_code=404, detail="Offre introuvable")
+            fiche = construire_fiche(offre, profile, cfg)
+            dossier = cfg.applications_path / (
+                f"{int(offre.score):03d}-{slugify(offre.company or offre.source)}"
+                f"-{slugify(offre.title)}"
+            )
+            dossier.mkdir(parents=True, exist_ok=True)
+            (dossier / "entretien.md").write_text(rendre_markdown(fiche),
+                                                  encoding="utf-8")
+        finally:
+            base.close()
+        return RedirectResponse(f"/document/{offer_id}/entretien.md", status_code=303)
 
     @app.post("/campagne")
     def lancer_campagne() -> RedirectResponse:

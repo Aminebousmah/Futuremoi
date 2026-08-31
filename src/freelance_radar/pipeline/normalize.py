@@ -116,18 +116,63 @@ def parse_date(value: str | None) -> date | None:
 # --------------------------------------------------------------------------- #
 _EUR = r"(?:\u20ac|eur|euros?)"
 
-_RATE_RANGE = re.compile(
-    rf"(\d{{3,4}})\s*{_EUR}?\s*(?:-|\u00e0|a|/|et|to)\s*(\d{{3,4}})\s*{_EUR}?\s*"
-    r"(?:ht\s*)?(?:/|par\s+)?\s*(?:j\b|jours?|days?)",
-    re.IGNORECASE,
+# Bornes de plausibilite. En dessous de 200 on ramasse des tickets restaurant
+# et des nombres de jours ; au dessus de 2500 des budgets ou des salaires.
+TJM_MIN_PLAUSIBLE = 200
+TJM_MAX_PLAUSIBLE = 2500
+
+# Un montant, borne des deux cotes pour ne jamais tronquer un nombre plus long.
+# Sans `(?<!\d)` / `(?!\d)`, "TJM : 15000 EUR" livrait "1500" -- plausible, et
+# faux. La premiere alternative couvre le separateur de milliers ("1 200 EUR"),
+# qui sans elle etait lu "200" : un TJM de 1200 tombait sous le seuil minimum
+# et l'offre etait rejetee. Elle doit etre testee avant la forme compacte.
+_NOMBRE = r"(?<!\d)(\d{1,2}[ \u00a0\u202f]\d{3}|\d{3,4})(?!\d)"
+
+_MOT_TJM = (r"(?:tjm|t\.j\.m\.?|tarif\s+journalier|taux\s+journalier"
+            r"|prix\s+journalier|daily\s+rate|tarif\s+/?\s*jour)")
+_PAR_JOUR = r"(?:ht\s*)?(?:/|par\s+)?\s*(?:j\b|jours?|days?)"
+_SEP_FOURCHETTE = r"\s*(?:[-\u2013\u2014]|\u00e0\s|a\s|et\s|to\s|/)\s*"
+
+# Fourchettes d'abord : "450 a 550" est plus informatif que "450" seul.
+_PATTERNS_FOURCHETTE = (
+    # "TJM : 450 - 550 EUR", "TJM entre 450 et 550"
+    re.compile(rf"{_MOT_TJM}[^\d\n]{{0,30}}?{_NOMBRE}{_SEP_FOURCHETTE}{_NOMBRE}",
+               re.IGNORECASE),
+    # "500-650 EUR / jour", "450 a 550 euros par jour"
+    re.compile(rf"{_NOMBRE}\s*{_EUR}?\s*{_SEP_FOURCHETTE}{_NOMBRE}\s*{_EUR}?\s*{_PAR_JOUR}",
+               re.IGNORECASE),
 )
-_RATE_CONTEXT = re.compile(
-    r"(?:tjm|taux\s+journalier|daily\s+rate)\D{0,20}(\d{3,4})", re.IGNORECASE
+
+_PATTERNS_SIMPLE = (
+    # "TJM : 500 EUR", "tarif journalier de 600"
+    re.compile(rf"{_MOT_TJM}[^\d\n]{{0,30}}?{_NOMBRE}", re.IGNORECASE),
+    # "550 EUR HT par jour", "600EUR/j"
+    re.compile(rf"{_NOMBRE}\s*{_EUR}\s*{_PAR_JOUR}", re.IGNORECASE),
 )
-_RATE_SINGLE = re.compile(
-    rf"(\d{{3,4}})\s*{_EUR}\s*(?:ht\s*)?(?:/|par\s+)?\s*(?:j\b|jours?|days?)",
-    re.IGNORECASE,
-)
+
+
+_RX_MENTION_TJM = re.compile(_MOT_TJM, re.IGNORECASE)
+
+
+def mentions_daily_rate(text: str) -> str | None:
+    """Rend l'expression qui annonce un tarif journalier, ou None.
+
+    Utile au-dela de l'extraction du montant : une annonce qui parle de TJM
+    s'adresse a un independant, meme quand elle ne chiffre rien.
+    """
+    if not text:
+        return None
+    match = _RX_MENTION_TJM.search(text)
+    return match.group(0) if match else None
+
+
+def _montant(brut: str) -> int:
+    """Convertit une capture en entier, separateur de milliers compris."""
+    return int(brut.replace(" ", "").replace("\u00a0", "").replace("\u202f", ""))
+
+
+def _plausible(value: int) -> bool:
+    return TJM_MIN_PLAUSIBLE <= value <= TJM_MAX_PLAUSIBLE
 
 
 def parse_daily_rate(text: str) -> tuple[int | None, int | None]:
@@ -139,24 +184,19 @@ def parse_daily_rate(text: str) -> tuple[int | None, int | None]:
     if not text:
         return None, None
 
-    def ok(v: int) -> bool:
-        return 200 <= v <= 2500
+    for rx in _PATTERNS_FOURCHETTE:
+        for match in rx.finditer(text):
+            low, high = _montant(match.group(1)), _montant(match.group(2))
+            if low > high:
+                low, high = high, low
+            if _plausible(low) and _plausible(high):
+                return low, high
 
-    m = _RATE_RANGE.search(text)
-    if m:
-        lo, hi = int(m.group(1)), int(m.group(2))
-        if ok(lo) and ok(hi) and lo <= hi:
-            return lo, hi
-
-    m = _RATE_CONTEXT.search(text)
-    if m and ok(int(m.group(1))):
-        v = int(m.group(1))
-        return v, v
-
-    m = _RATE_SINGLE.search(text)
-    if m and ok(int(m.group(1))):
-        v = int(m.group(1))
-        return v, v
+    for rx in _PATTERNS_SIMPLE:
+        for match in rx.finditer(text):
+            value = _montant(match.group(1))
+            if _plausible(value):
+                return value, value
 
     return None, None
 

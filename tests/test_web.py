@@ -372,3 +372,38 @@ class TestConsentementLLM:
         r = client.post(f"/offre/{offre_en_base.id}/candidature",
                         data={}, follow_redirects=False)
         assert r.status_code == 303
+
+
+class TestFicheEntretien:
+    def test_bouton_present_sur_la_page(self, client, offre_en_base):
+        page = client.get(f"/offre/{offre_en_base.id}").text
+        assert f"/offre/{offre_en_base.id}/entretien" in page
+        assert "fiche d'entretien" in page
+
+    def test_generation_ecrit_le_fichier(self, client, offre_en_base, cfg):
+        r = client.post(f"/offre/{offre_en_base.id}/entretien",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        fiches = list(cfg.applications_path.glob("*/entretien.md"))
+        assert len(fiches) == 1
+        assert "Préparation d'entretien" in fiches[0].read_text(encoding="utf-8")
+
+    def test_redirige_vers_le_document(self, client, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/entretien",
+                        follow_redirects=False)
+        assert r.headers["location"].endswith("/entretien.md")
+
+    def test_offre_inconnue(self, client):
+        assert client.post("/offre/inconnue/entretien").status_code == 404
+
+    def test_aucun_appel_llm(self, client, offre_en_base, monkeypatch):
+        """La fiche est hors ligne : elle ne doit toucher a aucune cle."""
+        from freelance_radar.apply.llm import LLMWriter
+
+        def interdit(self, prompt):  # pragma: no cover - ne doit jamais s'executer
+            raise AssertionError("la fiche d'entretien a declenche un appel LLM")
+
+        monkeypatch.setattr(LLMWriter, "write", interdit)
+        r = client.post(f"/offre/{offre_en_base.id}/entretien",
+                        follow_redirects=False)
+        assert r.status_code == 303

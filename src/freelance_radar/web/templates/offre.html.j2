@@ -118,6 +118,29 @@
   </p>
 </div>
 
+{# Mise en avant au stade entretien, mais accessible a tout moment : on prepare
+   souvent avant que le rendez-vous soit cale. #}
+<div class="panneau">
+  <strong>Entretien</strong>
+  {% if offre.status.value == "interview" %}
+    <p class="sub" style="margin:.5rem 0">
+      Entretien planifié. La fiche liste les questions probables, les points à
+      réviser et ce que vous avez à demander.
+    </p>
+  {% else %}
+    <p class="sub" style="margin:.5rem 0">
+      Questions probables, points à réviser et questions à poser, déduits de
+      l'annonce. Hors ligne, rien n'est facturé.
+    </p>
+  {% endif %}
+  <form method="post" action="/offre/{{ offre.id }}/entretien">
+    <button type="submit"
+            class="{{ 'primaire' if offre.status.value == 'interview' }}">
+      Générer la fiche d'entretien
+    </button>
+  </form>
+</div>
+
 <div class="panneau">
   <div class="enligne" style="margin-bottom:.8rem">
     <form method="post" action="/offre/{{ offre.id }}/postuler" class="compact">
