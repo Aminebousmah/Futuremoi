@@ -413,6 +413,49 @@ def apply(
 #  track / report
 # --------------------------------------------------------------------------- #
 @app.command()
+def entretien(
+    offer_id: str = typer.Argument(..., help="Offre a preparer (prefixe accepte)."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Genere la fiche de preparation d'entretien d'une offre.
+
+    Entierement hors ligne : les questions se deduisent de ce que l'annonce
+    reclame, aucun appel a un modele n'est necessaire.
+    """
+    from .apply import construire_fiche, rendre_markdown
+    from .apply.generator import slugify
+
+    cfg, profile, db = _load(verbose)
+    offre = db.get_offer(offer_id)
+    if not offre:
+        console.print(f"[red]Offre introuvable :[/] {offer_id}")
+        raise typer.Exit(code=1)
+
+    fiche = construire_fiche(offre, profile, cfg)
+
+    # La fiche rejoint le dossier de candidature quand il existe, sinon elle
+    # le cree : on garde tout ce qui concerne une offre au meme endroit.
+    dossier = cfg.applications_path / (
+        f"{int(offre.score):03d}-{slugify(offre.company or offre.source)}"
+        f"-{slugify(offre.title)}"
+    )
+    dossier.mkdir(parents=True, exist_ok=True)
+    chemin = dossier / "entretien.md"
+    chemin.write_text(rendre_markdown(fiche), encoding="utf-8")
+
+    sujets = ", ".join(nom for nom, _ in fiche.sujets_cles) or "aucun sujet identifie"
+    lignes = [
+        f"Sujets cles : [bold]{sujets}[/]",
+        f"Questions techniques : [bold]{len(fiche.questions_techniques)}[/]",
+        f"Points a reviser : [bold]{len(fiche.revisions)}[/]",
+    ]
+    if fiche.questions_ecarts:
+        lignes.append(f"[yellow]Ecarts a preparer : {len(fiche.questions_ecarts)}[/]")
+    lignes += ["", f"Fiche : [bold]{chemin}[/]"]
+    console.print(Panel.fit("\n".join(lignes), title=f"Entretien — {offre.title[:45]}"))
+
+
+@app.command()
 def track(
     offer_id: Optional[str] = typer.Argument(None),
     status: Optional[str] = typer.Option(

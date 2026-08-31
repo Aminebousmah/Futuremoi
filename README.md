@@ -141,6 +141,8 @@ radar list --min-score 60              # les offres retenues, triées
 radar show 8099059b                    # une offre + l'explication de son score
 radar apply --all --min-score 65       # génère les brouillons des meilleures offres
 radar apply 8099059b                   # génère pour une offre précise
+radar apply --all --llm                # rédaction par Claude (appel facturé, confirmé)
+radar entretien 8099059b               # fiche de préparation d'entretien (hors ligne)
 radar track                            # tableau de suivi des candidatures
 radar track 8099059b --status sent     # marque une candidature comme envoyée
 radar report -f html                   # rapport HTML (aussi : csv, json)
@@ -465,7 +467,8 @@ Lancez `radar scrape --explain` pour voir le décompte des rejets par motif.
 ├── offre.md       # l'annonce complète, pour la relecture hors ligne
 ├── offre.json     # les données brutes de l'offre
 ├── cv-adapte.md   # profil réécrit + compétences composées pour cette offre
-└── checklist.md   # à vérifier avant envoi + points à préparer en entretien
+├── checklist.md   # à vérifier avant envoi
+└── entretien.md   # fiche de préparation d'entretien (`radar entretien`)
 ```
 
 Deux moteurs de rédaction :
@@ -473,12 +476,20 @@ Deux moteurs de rédaction :
 - **`template`** (par défaut) — Jinja2, déterministe, hors ligne. Reprend votre
   pitch, vos deux références les plus pertinentes et l'angle correspondant à la
   famille de poste détectée (data engineer, analytics engineer, BI, data science…).
-- **`llm`** — utilisé automatiquement si `ANTHROPIC_API_KEY` est défini et le SDK
-  installé. Claude rédige l'accroche et le corps **à partir des seules références
-  de votre profil**, avec consigne explicite de ne rien inventer et de lister dans
-  `gaps` les compétences demandées qui vous manquent. En cas d'échec réseau, de
+- **`llm`** — **jamais automatique.** Une clé présente dans `.env` n'autorise
+  rien : chaque génération demande un accord explicite, parce qu'un appel est
+  facturé. En ligne de commande, `--llm` ouvre la porte et une confirmation la
+  franchit (`-y` pour la sauter) ; dans l'interface web, un bouton distinct mène
+  à un écran qui annonce le modèle et le coût avant de lancer quoi que ce soit.
+  Claude rédige alors l'accroche et le corps **à partir des seules références de
+  votre profil**, avec consigne de ne rien inventer et de lister dans `gaps` les
+  compétences demandées qui vous manquent. En cas de refus, d'échec réseau, de
   clé absente ou de réponse inexploitable, le repli sur les templates est
   automatique — la commande ne casse jamais.
+
+  Modèle par défaut : **Haiku 4.5**. Une lettre est cadrée par un schéma de
+  sortie ; Opus y coûterait vingt fois plus pour un gain nul. `ANTHROPIC_MODEL`
+  reste prioritaire si vous voulez en changer.
 
 `radar apply --template` force le moteur déterministe.
 
@@ -490,6 +501,49 @@ Le TJM proposé est calculé, pas copié, selon `constraints.rate_strategy` :
 - **`target`** — ne jamais dépasser votre objectif.
 
 Dans les deux cas, **jamais sous votre plancher déclaré**.
+
+---
+
+## La fiche d'entretien
+
+```bash
+radar entretien 30389300
+```
+
+Ou le bouton **Générer la fiche d'entretien** sur la page de l'offre, mis en
+avant quand elle est au statut `interview`.
+
+Produite **hors ligne**, sans appel facturé : les questions posées en entretien
+Data sont stables, ce qui change d'une offre à l'autre c'est *quelles*
+compétences sont sur la table — et le classement des compétences par pertinence
+existe déjà pour l'adaptation du CV.
+
+La fiche contient :
+
+| Section | Contenu |
+|---|---|
+| Ce que l'offre met sur la table | Compétences citées, notées par pertinence |
+| À préparer en priorité | Les **écarts** : demandés, absents de votre profil |
+| Questions techniques probables | Par sujet, les questions réellement posées |
+| Points à réviser | 3 à 5 points concrets par sujet |
+| Vos preuves | Vos références qui partagent un outil avec l'annonce |
+| Questions de posture / freelance | Celles qui tombent quel que soit le poste |
+| À poser vous-même | Cadrage de la mission — et votre protection |
+| Points de vigilance | Rappel TJM cible/plancher, écarts, durée |
+
+Deux partis pris :
+
+- **Les écarts passent en premier.** Ce sont les questions qui font perdre une
+  mission quand elles sont improvisées. La fiche ne suggère jamais de les masquer.
+- **Les sujets adjacents comptent autant que les sujets cités.** Une annonce
+  « Power BI » ne dit presque jamais « DAX », mais l'entretien le demandera. Une
+  table d'implications tacites ajoute ces sujets : sur l'offre Consultant Power BI,
+  cela fait passer la fiche de 4 à 15 questions et de 3 à 6 sujets à réviser.
+
+Les intitulés de la base de révision reprennent **à l'identique** ceux de
+`profile.cv.competences`, accents compris : une clé mal orthographiée ne
+déclencherait jamais, sans erreur visible. Un test lit le vrai `profile.yaml`
+et échoue si une clé n'y figure pas.
 
 ---
 
