@@ -64,6 +64,50 @@ class TestDailyRate:
         assert parse_daily_rate(texte) == (None, None)
 
 
+    @pytest.mark.parametrize("texte, attendu", [
+        ("TJM : 500 €", (500, 500)),
+        ("TJM 450-550 EUR", (450, 550)),
+        ("TJM entre 450 et 550 euros", (450, 550)),
+        ("Tarif journalier de 600 € HT", (600, 600)),
+        ("Taux journalier moyen : 480€", (480, 480)),
+        ("Remuneration : 550 € / jour", (550, 550)),
+        ("Budget 600€/j", (600, 600)),
+        ("500 euros par jour", (500, 500)),
+        ("Fourchette 400 a 650 € par jour", (400, 650)),
+        # Les bornes inversees sont remises dans l'ordre.
+        ("TJM 600 - 450", (450, 600)),
+    ])
+    def test_extraction_tjm(self, texte: str, attendu: tuple[int, int]) -> None:
+        assert parse_daily_rate(texte) == attendu
+
+
+    @pytest.mark.parametrize("texte", [
+        "",
+        "Salaire annuel : 45 000 € brut",
+        "Equipe de 12 personnes, 3 ans d'experience",
+        # Hors bornes de plausibilite : un TJM a 15 000 est un budget, pas un tarif.
+        "TJM : 15000 €",
+        "Ticket restaurant de 9 € par jour",
+    ])
+    def test_pas_de_tjm_abusif(self, texte: str) -> None:
+        """Un montant implausible ne doit jamais etre pris pour un TJM."""
+        assert parse_daily_rate(texte) == (None, None)
+
+
+    @pytest.mark.parametrize("texte", [
+        "TJM 1200 euros par jour",
+        "TJM 1 200 euros par jour",          # espace fine
+        "TJM 1\u00a0200 euros par jour",  # insecable, courante en typo FR
+    ])
+    def test_separateur_de_milliers(self, texte: str) -> None:
+        """Les trois ecritures d'un millier doivent donner le meme montant."""
+        assert parse_daily_rate(texte) == (1200, 1200)
+
+
+    def test_fourchette_prioritaire_sur_montant_isole(self) -> None:
+        """Une fourchette est plus informative qu'une borne seule."""
+        assert parse_daily_rate("TJM 450-550 €, prime 200 € / jour") == (450, 550)
+
 class TestDuration:
     def test_mois(self):
         assert parse_duration_months("Mission de 6 mois renouvelable") == 6.0

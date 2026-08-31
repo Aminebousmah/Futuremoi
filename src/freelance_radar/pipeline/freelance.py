@@ -9,25 +9,21 @@ que dans le corps de l'annonce -- typiquement sous la forme d'un TJM.
 
 Ce module lit ce que la source n'a pas su declarer :
 
-  * `extract_daily_rate()` rend la fourchette de TJM citee dans le texte ;
   * `is_freelance_text()` rend le marqueur qui prouve la nature freelance ;
-  * `detect()` combine les deux en un `Signals` exploitable par l'enrichissement.
+  * `detect()` le combine au TJM (extrait par `normalize.parse_daily_rate`,
+    seule implementation) en un `Signals` exploitable par l'enrichissement.
 
 Le parti pris est d'etre conservateur : mieux vaut manquer une promotion que
 faire remonter un CDI deguise. Un TJM plausible ou un marqueur explicite sont
 exiges ; les mots ambigus ("mission", "regie") ne suffisent jamais seuls.
 
-RENDEMENT MESURE (31/08/2026, 2052 annonces, 10 sources)
---------------------------------------------------------
-Ce module rapporte peu, et il faut le savoir avant d'y investir :
+RENDEMENT MESURE (31/08/2026, 316 annonces France Travail)
+----------------------------------------------------------
+Elargir `type_contrat` de LIB a "LIB,CDD,MIS" fait passer la collecte de 20 a
+316 annonces et n'en requalifie aucune : les 206 CDD sont de vrais CDD
+salaries, sans TJM ni mention de statut. D'ou le retour a LIB.
 
-  * TJM recuperes depuis le texte : 1 annonce. Les sources qui portent du
-    freelance (Free-Work, Freelance-Info, Adzuna) livrent deja leur tarif en
-    structure ; les job boards anglophones parlent en salaire annuel.
-  * Requalifications de contrat : 0. Aucune source francaise ne cache de
-    mission freelance derriere un tag salarie.
-
-Une premiere version, plus permissive, en produisait 12 -- toutes fausses
+Une premiere version, plus permissive, en requalifiait 12 -- toutes fausses
 (cf. la note sur `_FREELANCE_FORT`). Le module est conserve parce qu'il est
 peu couteux et qu'il protege le jour ou une source changera de format, pas
 parce qu'il debloque du volume aujourd'hui.
@@ -38,11 +34,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-# Bornes de plausibilite d'un TJM en EUR. En dessous de 100 on tombe sur des
-# montants qui n'ont rien d'un tarif (nombre de jours, effectifs, references) ;
-# au dessus de 2500 on attrape des budgets globaux ou des salaires annuels.
-TJM_MIN_PLAUSIBLE = 100
-TJM_MAX_PLAUSIBLE = 2500
+from .normalize import mentions_daily_rate, parse_daily_rate
 
 # Marqueurs qui, seuls, prouvent que la prestation est independante.
 #
@@ -80,52 +72,6 @@ _RX_FREELANCE = re.compile("|".join(_FREELANCE_FORT), re.IGNORECASE)
 # c'est le seul cas ou la source est plus fiable que le texte.
 _RX_CDI_TITRE = re.compile(r"\bcdi\b|\bcontrat\s+[àa]\s+dur[ée]e\s+ind[ée]termin", re.IGNORECASE)
 
-# --- TJM -------------------------------------------------------------------
-#
-# Trois familles de formulations, de la plus explicite a la plus implicite.
-# L'ordre compte : on s'arrete a la premiere qui donne un montant plausible.
-
-_MOT_TJM = (r"(?:tjm|t\.j\.m\.?|tarif\s+journalier|taux\s+journalier"
-            r"|prix\s+journalier|tarif\s+/?\s*jour)")
-_DEVISE = r"(?:€|eur(?:os?)?\b|k?€)"
-# Tirets et lettres accentues en echappements Unicode : `re` les interprete, et
-# le fichier reste lisible en revue sans caracteres ambigus.
-_SEP_FOURCHETTE = r"\s*(?:[-\u2013\u2014]|[àa]\s|et\s|/)\s*"
-
-# Un montant, borne des deux cotes pour ne jamais tronquer un nombre plus long :
-# sans `(?<!\d)` / `(?!\d)`, "15000" livrerait "1500", parfaitement plausible et
-# parfaitement faux. La premiere alternative couvre le separateur de milliers
-# ("1 500 €"), qui doit etre teste avant la forme compacte.
-_NOMBRE = r"(?<!\d)(\d{1,2}[ \u00a0]\d{3}|\d{3,4})(?!\d)"
-
-_PATTERNS_FOURCHETTE = (
-    # "TJM : 450 - 550 €", "TJM entre 450 et 550"
-    re.compile(
-        rf"{_MOT_TJM}[^\d\n]{{0,30}}?{_NOMBRE}{_SEP_FOURCHETTE}{_NOMBRE}",
-        re.IGNORECASE,
-    ),
-    # "450 à 550 € / jour", "450-550 euros par jour"
-    re.compile(
-        rf"{_NOMBRE}{_SEP_FOURCHETTE}{_NOMBRE}\s*{_DEVISE}?\s*(?:ht\s*)?"
-        rf"(?:/|par\s+)\s*(?:j\b|jour)",
-        re.IGNORECASE,
-    ),
-)
-
-_PATTERNS_SIMPLE = (
-    # "TJM : 500 €", "tarif journalier de 600"
-    re.compile(rf"{_MOT_TJM}[^\d\n]{{0,30}}?{_NOMBRE}", re.IGNORECASE),
-    # "500 € / jour", "500€/j", "600 euros par jour", "500 € HT par jour"
-    re.compile(
-        rf"{_NOMBRE}\s*{_DEVISE}?\s*(?:ht\s*)?(?:/|par\s+)\s*(?:j\b|jour)",
-        re.IGNORECASE,
-    ),
-)
-
-# Un TJM cite quelque part prouve la prestation independante : on ne parle pas
-# de tarif journalier a un salarie.
-_RX_MENTION_TJM = re.compile(_MOT_TJM, re.IGNORECASE)
-
 
 @dataclass(frozen=True)
 class Signals:
@@ -141,42 +87,6 @@ class Signals:
         return self.rate_min is not None or self.rate_max is not None
 
 
-def _plausible(value: int) -> bool:
-    return TJM_MIN_PLAUSIBLE <= value <= TJM_MAX_PLAUSIBLE
-
-
-def _montant(brut: str) -> int:
-    """Convertit une capture en entier, separateur de milliers compris."""
-    return int(brut.replace(" ", "").replace("\u00a0", ""))
-
-
-def extract_daily_rate(text: str) -> tuple[int | None, int | None]:
-    """Rend (min, max) du TJM cite dans le texte, chaque borne pouvant etre None.
-
-    Une fourchette est preferee a un montant isole : "450 a 550" est plus
-    informatif que "450". Les montants hors bornes de plausibilite sont
-    ignores, ce qui ecarte les salaires annuels et les budgets de projet.
-    """
-    if not text:
-        return None, None
-
-    for rx in _PATTERNS_FOURCHETTE:
-        for match in rx.finditer(text):
-            low, high = _montant(match.group(1)), _montant(match.group(2))
-            if low > high:
-                low, high = high, low
-            if _plausible(low) and _plausible(high):
-                return low, high
-
-    for rx in _PATTERNS_SIMPLE:
-        for match in rx.finditer(text):
-            value = _montant(match.group(1))
-            if _plausible(value):
-                return value, value
-
-    return None, None
-
-
 def is_freelance_text(text: str) -> str | None:
     """Rend le marqueur freelance trouve dans le texte, ou None.
 
@@ -188,8 +98,9 @@ def is_freelance_text(text: str) -> str | None:
     match = _RX_FREELANCE.search(text)
     if match:
         return match.group(0)
-    match = _RX_MENTION_TJM.search(text)
-    return match.group(0) if match else None
+    # Un TJM cite quelque part prouve la prestation independante : on ne
+    # parle pas de tarif journalier a un salarie.
+    return mentions_daily_rate(text)
 
 
 def detect(title: str, description: str) -> Signals:
@@ -202,7 +113,7 @@ def detect(title: str, description: str) -> Signals:
         return Signals()
 
     blob = f"{title}\n{description}"
-    rate_min, rate_max = extract_daily_rate(blob)
+    rate_min, rate_max = parse_daily_rate(blob)
     marker = is_freelance_text(blob)
 
     # Une promotion doit toujours pouvoir s'expliquer. Quand c'est le tarif seul
