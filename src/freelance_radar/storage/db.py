@@ -331,6 +331,18 @@ class Database:
         )
         self.conn.commit()
 
+    def last_run_at(self) -> datetime | None:
+        """Date du dernier passage, ou None si la base n'en a jamais connu."""
+        ligne = self.conn.execute(
+            "SELECT started_at FROM runs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if not ligne or not ligne["started_at"]:
+            return None
+        try:
+            return datetime.fromisoformat(ligne["started_at"])
+        except ValueError:
+            return None
+
     def last_runs(self, limit: int = 10) -> list[sqlite3.Row]:
         return list(self.conn.execute(
             "SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)

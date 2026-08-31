@@ -69,86 +69,75 @@ class AdaptationCV:
         return f"Ordre des rubriques : {ordre}"
 
 
-@dataclass
-class Besoin:
-    """Un besoin exprimable par une offre, et les outils qui y repondent."""
-
-    motifs: str
-    label: str
-    domaines: list[str]
-    # Besoins que celui-ci entraine mecaniquement : une mission BI suppose un
-    # modele semantique, meme si l'annonce ne le dit pas. C'est ainsi qu'on
-    # repond a la demande sans se limiter a ses mots.
-    implique: list[str] = field(default_factory=list)
-
-
-# Ce qu'une offre demande, traduit en domaines d'outils.
-#
-# Le principe : une annonce parle besoin ("modèles sémantiques complexes",
-# "fusion de rapports"), pas outillage. Reprendre ses mots au mot ne prouve
-# rien ; montrer les OUTILS qui servent ce besoin, si.
-#
-# `motifs`  : ce qu'on cherche dans l'annonce (sans accents, minuscules)
-# `label`   : l'intitulé de rubrique qui en découlera dans le CV
-# `domaines`: les domaines de l'inventaire à puiser, dans l'ordre
-BESOINS: list[Besoin] = [
-    Besoin(r"modele\s+semantique|semantique|modelisation|modele\s+de\s+donnees|"
-           r"data\s+model|star\s+schema|schema\s+en\s+etoile|dax|mesures|"
-           r"optimisation|performance|refonte",
-           "Modélisation & sémantique", ["modelisation"]),
-
-    Besoin(r"dashboard|tableau\s+de\s+bord|dataviz|data\s+visualization|visualisation|"
-           r"restitution|reporting|rapport|power\s+bi|tableau|qlik",
-           "Data Visualisation & BI", ["dataviz"],
-           # Un poste BI suppose toujours un modele derriere les visuels, et des
-           # sources a preparer : on les propose sans que l'annonce les nomme.
-           implique=["Modélisation & sémantique", "Préparation & transformation"]),
-
-    Besoin(r"source|preparation|nettoyage|transformation|power\s+query|fusion|"
-           r"consolidation|harmonisation|simplification",
-           "Préparation & transformation", ["preparation"]),
-
-    Besoin(r"qualite|fiabilite|controle|gouvernance|coherence|anomalie",
-           "Qualité & fiabilité des données", ["qualite"]),
-
-    Besoin(r"pipeline|etl|elt|ingestion|orchestration|flux|entrepot|"
-           r"datawarehouse|lakehouse",
-           "Ingénierie de données", ["pipelines"],
-           implique=["Cloud & industrialisation"]),
-
-    Besoin(r"cloud|azure|aws|gcp|devops|ci/cd|industrialisation|deploiement",
-           "Cloud & industrialisation", ["cloud"]),
-
-    Besoin(r"machine\s+learning|\bml\b|\bia\b|intelligence\s+artificielle|"
-           r"predictif|scoring|nlp|llm|data\s+scien",
-           "Machine Learning & IA", ["ml"],
-           implique=["Data & Programmation"]),
-
-    Besoin(r"metier|besoin|cadrage|pilotage|budget|decision|atelier|accompagnement|"
-           r"controle\s+de\s+gestion",
-           "Pilotage & relation métier", ["pilotage"]),
-
-    Besoin(r"python|sql|\br\b|requet|script|developpement",
-           "Data & Programmation", ["programmation"]),
-]
-
-
-# Rubriques ajoutées quand l'offre n'en demande pas assez : elles montrent
-# l'étendue du profil sans s'éloigner du poste.
-COMPLEMENTS: list[tuple[str, list[str]]] = [
-    ("Data & Programmation", ["programmation"]),
-    ("Data Engineering & Big Data", ["pipelines"]),
-    ("Cloud & DevOps", ["cloud"]),
-    ("Machine Learning & IA", ["ml"]),
-]
-
-# Le bloc COMPÉTENCES du CV tient 7 lignes. Deux sont fixes, il reste donc
-# cinq rubriques composables : au-delà, la maquette déborde.
+# Le bloc COMPETENCES du CV tient 7 lignes : "Compétences transverses",
+# "Langues", et cinq rubriques composées.
 RUBRIQUES_MOBILES = 5
+COMPETENCES_RETENUES = 12      # ce qu'on met en avant, pas tout ce qu'on sait
+COMPETENCES_PAR_RUBRIQUE = 4   # au-dela, une rubrique ecrase les autres
+MINIMUM_PAR_RUBRIQUE = 2       # une ligne d'un seul element fait pauvre
+TRANSVERSES_RETENUES = 4
+
+# Formulations alternatives d'une meme competence, cote annonce. On ne liste
+# que celles qu'une recherche de sous-chaine ne trouverait pas seule.
+ALIAS: dict[str, list[str]] = {
+    "Power BI": ["powerbi", "power-bi"],
+    "Excel (Power Query, TCD, VBA)": ["excel", "tableau croise"],
+    "SAP BusinessObjects (BI4)": ["business objects", "businessobjects", "bo", "webi"],
+    "Power Query (langage M)": ["power query", "langage m"],
+    "Modèle en étoile (Kimball)": ["etoile", "kimball", "star schema", "dimensionnel"],
+    "Modèle sémantique": ["semantique", "modele de donnees", "dataset"],
+    "Mesures et KPI (DAX)": ["dax", "mesure", "kpi"],
+    "Spark / PySpark": ["spark", "pyspark"],
+    "ETL / ELT": ["etl", "elt"],
+    "Change Data Capture (CDC)": ["cdc", "change data capture"],
+    "LLM (GPT, Claude)": ["llm", "gpt", "genai", "ia generative"],
+    "RAG (retrieval augmented generation)": ["rag", "retrieval augmented"],
+    "Bases vectorielles": ["vector", "embedding"],
+    "Traitement du langage (NLP)": ["nlp", "traitement du langage"],
+    "API REST": ["api rest", "rest api", "api"],
+    "MDM / données de référence": ["mdm", "master data", "donnees de reference"],
+    "Gouvernance des données": ["gouvernance"],
+    "Qualité des données": ["qualite des donnees", "data quality"],
+    "Contrôles qualité automatisés": ["controle qualite", "fiabilisation"],
+    "KPI et tableaux de bord": ["kpi", "tableau de bord", "dashboard"],
+    "Agile / Scrum": ["agile", "scrum"],
+    # Savoir-etre : ce qu'une annonce dit quand elle les reclame.
+    "Vulgarisation auprès du métier": ["vulgaris", "pedagog", "metier", "utilisateur"],
+    "Autonomie": ["autonom", "independan"],
+    "Rigueur": ["rigueur", "rigoureux", "precision", "fiabilite"],
+    "Esprit d'analyse": ["analyse", "analytique", "esprit critique"],
+    "Esprit de synthèse": ["synthese", "restitution"],
+    "Travail en équipe": ["equipe", "collaboratif", "collectif"],
+    "Force de proposition": ["force de proposition", "proactif", "initiative"],
+    "Pédagogie et formation": ["formation", "former", "accompagnement", "montee en competence"],
+    "Animation d'ateliers": ["atelier", "workshop", "animation"],
+    "Gestion des priorités": ["priorit", "delai", "multi-projet"],
+    "Relation client": ["client", "interlocuteur", "stakeholder"],
+    "Conduite du changement": ["conduite du changement", "adoption", "transformation"],
+    "Résolution de problèmes": ["resolution", "probleme", "troubleshooting"],
+    "Adaptabilité": ["adaptab", "polyvalen", "flexib"],
+    "Curiosité": ["curios", "veille"],
+    "Communication": ["communication", "communiquer", "presentation"],
+    "CI/CD": ["ci/cd", "cicd", "integration continue"],
+    "Séries temporelles": ["serie temporelle", "time series", "forecast"],
+    "Tests A/B": ["ab test", "a/b test"],
+    "Statistiques appliquées": ["statistique", "econometrie"],
+    "Prévision / forecast": ["prevision", "forecast", "budget"],
+    "Self-service BI": ["self service", "self-service"],
+    "Azure Data Factory": ["data factory", "adf"],
+    "Apache NiFi": ["nifi"],
+    "Looker Studio": ["looker studio", "data studio"],
+    "Amazon SageMaker": ["sagemaker"],
+    "Vertex AI": ["vertex"],
+}
 
 
-def _inventaire(profile: Profile) -> dict[str, list[str]]:
-    return dict((profile.cv or {}).get("outils") or {})
+def _competences(profile: Profile) -> dict[str, list[str]]:
+    return dict((profile.cv or {}).get("competences") or {})
+
+
+def _transverses(profile: Profile) -> list[str]:
+    return list((profile.cv or {}).get("transverses") or [])
 
 
 def _rubriques_fixes(profile: Profile) -> list[Rubrique]:
@@ -157,73 +146,153 @@ def _rubriques_fixes(profile: Profile) -> list[Rubrique]:
                      epinglee=True) for r in brutes if r.get("label")]
 
 
-def besoins_detectes(offer: JobOffer) -> list[tuple[str, list[str], float]]:
-    """Besoins exprimes par l'offre, du plus marque au moins marque.
+def _motifs(competence: str) -> list[str]:
+    """Toutes les facons dont une annonce peut nommer cette competence."""
+    base = normalize_key(re.sub(r"\([^)]*\)", "", competence))
+    return [m for m in [base, *ALIAS.get(competence, [])] if m]
 
-    Le titre pese plus lourd que le corps : c'est lui qui dit le metier vise.
+
+def _pertinence(competence: str, titre: str, corps: str,
+                demandees: set[str]) -> float:
+    """A quel point l'offre reclame cette competence.
+
+    Le titre pese lourd : c'est la que se dit le coeur du poste. Les
+    competences reconnues par la taxonomie du pipeline comptent aussi, meme
+    formulees autrement dans le texte.
+    """
+    score = 0.0
+    for motif in _motifs(competence):
+        borne = rf"\b{re.escape(motif)}\b" if len(motif) <= 4 else re.escape(motif)
+        if re.search(borne, titre):
+            score += 5.0
+        occurrences = len(re.findall(borne, corps))
+        if occurrences:
+            score += 1.5 + min(occurrences, 4) * 0.5
+        if motif in demandees:
+            score += 3.0
+    return score
+
+
+def classer_competences(offer: JobOffer, profile: Profile) -> list[tuple[str, str, float]]:
+    """Toutes les competences de l'inventaire, notees pour cette offre.
+
+    Rend des triplets (categorie, competence, score), du plus pertinent au moins.
     """
     titre = normalize_key(offer.title)
-    corps = normalize_key(offer.description)[:6000]
-    par_label = {b.label: b for b in BESOINS}
-    poids: dict[str, float] = {}
+    corps = normalize_key(offer.description)[:8000]
+    demandees = {normalize_key(s) for s in offer.skills}
+    demandees |= {normalize_key(s)
+                  for s in ((offer.score_detail or {}).get("_matched_skills") or [])}
 
-    for besoin in BESOINS:
-        score = 0.0
-        if re.search(besoin.motifs, titre):
-            score += 3.0
-        score += min(len(re.findall(besoin.motifs, corps)), 4) * 0.75
-        if score:
-            poids[besoin.label] = poids.get(besoin.label, 0.0) + score
+    classees = []
+    for categorie, liste in _competences(profile).items():
+        for rang, competence in enumerate(liste):
+            score = _pertinence(competence, titre, corps, demandees)
+            # A score egal, l'ordre de l'inventaire departage : il place en
+            # tete les outils les plus courants du metier.
+            classees.append((categorie, competence, score - rang * 0.01))
+    return sorted(classees, key=lambda x: -x[2])
 
-    # Les besoins impliques heritent d'une fraction du poids de leur declencheur :
-    # ils comptent, mais jamais plus que ce que l'offre demande explicitement.
-    for label, score in list(poids.items()):
-        for suivant in par_label[label].implique:
-            poids[suivant] = max(poids.get(suivant, 0.0), score * 0.6)
 
-    return sorted(((label, par_label[label].domaines, p) for label, p in poids.items()),
-                  key=lambda x: -x[2])
+def _transverses_rubrique(offer: JobOffer, profile: Profile) -> list[Rubrique]:
+    """Les savoir-etre, choisis eux aussi selon l'offre."""
+    pool = _transverses(profile)
+    if not pool:
+        return []
+    titre = normalize_key(offer.title)
+    corps = normalize_key(offer.description)[:8000]
+    classes = sorted(
+        ((t, _pertinence(t, titre, corps, set()) - i * 0.01) for i, t in enumerate(pool)),
+        key=lambda x: -x[1],
+    )
+    return [Rubrique(label="Compétences transverses",
+                     outils=[t for t, _ in classes[:TRANSVERSES_RETENUES]],
+                     epinglee=True)]
 
 
 def composer_rubriques(offer: JobOffer, profile: Profile) -> list[Rubrique]:
-    """Compose les rubriques de competences a partir de ce que l'offre demande.
+    """Retient les competences les plus proches de l'offre et les regroupe.
 
-    On ne reordonne pas des rubriques figees : on en fabrique, en puisant dans
-    l'inventaire du profil les outils qui repondent au besoin detecte. Un outil
-    n'apparait qu'une fois, dans la rubrique la plus pertinente.
+    Deux temps. On selectionne d'abord ce que l'annonce reclame explicitement.
+    Puis, si le compte n'y est pas, on complete avec les competences voisines —
+    celles des memes categories — ce qui repond au besoin tout en montrant un
+    peu plus que le strict minimum.
     """
-    inventaire = _inventaire(profile)
-    if not inventaire:                       # profil sans inventaire : rien a composer
+    classees = classer_competences(offer, profile)
+    if not classees:
         return _rubriques_fixes(profile)
 
-    deja_cites: set[str] = set()
-    composees: list[Rubrique] = []
+    scores = {(c, k): s for c, k, s in classees}
+    retenues: list[tuple[str, str]] = []
+    par_categorie: dict[str, int] = {}
 
-    def ajouter(label: str, domaines: list[str], score: float) -> None:
-        outils = []
-        for domaine in domaines:
-            for outil in inventaire.get(domaine, []):
-                if outil not in deja_cites and outil not in outils:
-                    outils.append(outil)
-        if len(outils) < 2:                  # une rubrique d'un seul outil fait maigre
-            return
-        deja_cites.update(outils)
-        composees.append(Rubrique(label=label, outils=outils[:7], score=score))
+    def prendre(candidats) -> None:
+        """Ajoute des competences en respectant le plafond par categorie.
 
-    for label, domaines, poids in besoins_detectes(offer):
-        if len(composees) >= RUBRIQUES_MOBILES:
+        Sans ce plafond, les premieres categories ouvertes absorbent les douze
+        places et le CV n'affiche plus que deux lignes gonflees, ce qui donne
+        moins d'informations qu'une repartition equilibree.
+        """
+        for categorie, competence, _score in candidats:
+            if len(retenues) >= COMPETENCES_RETENUES:
+                return
+            if (categorie, competence) in retenues:
+                continue
+            if par_categorie.get(categorie, 0) >= COMPETENCES_PAR_RUBRIQUE:
+                continue
+            retenues.append((categorie, competence))
+            par_categorie[categorie] = par_categorie.get(categorie, 0) + 1
+
+    # 1. ce que l'annonce reclame explicitement
+    prendre([x for x in classees if x[2] > 0])
+    # 2. le voisinage des categories deja ouvertes, pour completer sans devier
+    ouvertes = set(par_categorie)
+    prendre([x for x in classees if x[0] in ouvertes])
+    # 3. a defaut, le haut de l'inventaire
+    prendre(classees)
+
+    # Regroupement : dans chaque categorie, la competence la plus demandee
+    # apparait en premier.
+    groupes: dict[str, list[str]] = {}
+    for categorie, competence in retenues:
+        groupes.setdefault(categorie, []).append(competence)
+
+    rubriques = [
+        Rubrique(label=cat,
+                 outils=sorted(liste, key=lambda k: -scores.get((cat, k), 0.0)),
+                 score=max(scores.get((cat, k), 0.0) for k in liste))
+        for cat, liste in groupes.items()
+    ]
+    rubriques.sort(key=lambda r: -r.score)
+
+    # On ne replie jamais une categorie dans une autre : verser "dbt" sous
+    # "Entrepots & bases de donnees" le rangerait sous un intitule qui ment.
+    gardees = rubriques[:RUBRIQUES_MOBILES]
+
+    def completer(rubrique: Rubrique, jusqu_a: int) -> None:
+        """Etoffe une rubrique avec les competences de sa propre categorie."""
+        for categorie, competence, _ in classees:
+            if len(rubrique.outils) >= jusqu_a:
+                return
+            if categorie == rubrique.label and competence not in rubrique.outils:
+                rubrique.outils.append(competence)
+
+    # Une ligne d'un seul element fait pauvre : on la complete, et on ne
+    # l'ecarte que si sa categorie n'a rien d'autre a offrir.
+    for rubrique in gardees:
+        if len(rubrique.outils) < MINIMUM_PAR_RUBRIQUE:
+            completer(rubrique, MINIMUM_PAR_RUBRIQUE)
+    gardees = [r for r in gardees if len(r.outils) >= MINIMUM_PAR_RUBRIQUE]
+
+    # Les places restantes vont aux rubriques les plus pertinentes.
+    for rubrique in gardees:
+        restantes = COMPETENCES_RETENUES - sum(len(r.outils) for r in gardees)
+        if restantes <= 0:
             break
-        ajouter(label, domaines, poids)
+        completer(rubrique, min(COMPETENCES_PAR_RUBRIQUE,
+                                len(rubrique.outils) + restantes))
 
-    # Depasser un peu le cadre : on complete avec les forces adjacentes.
-    for label, domaines in COMPLEMENTS:
-        if len(composees) >= RUBRIQUES_MOBILES:
-            break
-        if any(r.label == label for r in composees):
-            continue
-        ajouter(label, domaines, 0.0)
-
-    return _rubriques_fixes(profile) + composees
+    return [*_transverses_rubrique(offer, profile), *_rubriques_fixes(profile), *gardees]
 
 
 # Angle du paragraphe de profil selon la famille de poste detectee.

@@ -47,6 +47,10 @@ class FiltersConfig(BaseModel):
     locations_exclude: list[str] = Field(default_factory=list)
     locations_skip_sources: list[str] = Field(default_factory=list)
     remote_only: bool = False
+    # N'examiner que les annonces parues depuis le dernier passage. Une marge
+    # rattrape les sources qui indexent avec du retard.
+    only_since_last_run: bool = True
+    refresh_margin_days: int = 2
 
 
 class HttpConfig(BaseModel):

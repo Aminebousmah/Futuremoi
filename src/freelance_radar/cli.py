@@ -188,6 +188,9 @@ def scrape(
         None, "--source", "-s", help="Limiter a certaines sources (repetable)."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Ne rien ecrire en base."),
     explain: bool = typer.Option(False, "--explain", help="Detail des rejets de filtrage."),
+    tout: bool = typer.Option(
+        False, "--tout",
+        help="Reexaminer tout le catalogue, sans se limiter aux nouveautes."),
     top: int = typer.Option(15, "--top", "-n", help="Nombre d'offres affichees."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
@@ -201,13 +204,18 @@ def scrape(
             status.update(f"[bold]{step}[/] {detail}")
 
         result = run_campaign(cfg, profile, db, sources=source,
-                              dry_run=dry_run, progress=progress)
+                              dry_run=dry_run, tout=tout, progress=progress)
 
     if not result.fetched:
         console.print("[yellow]Aucune offre collectee.[/] Verifiez `radar sources`.")
         raise typer.Exit(code=1)
 
     summary = Table.grid(padding=(0, 2))
+    if result.publiees_depuis:
+        summary.add_row("nouveautes depuis",
+                        f"[bold]{result.publiees_depuis.strftime('%d/%m/%Y %H:%M')}[/]")
+    elif cfg.filters.only_since_last_run:
+        summary.add_row("perimetre", "[dim]tout le catalogue (premier passage)[/]")
     summary.add_row("collectees", f"[bold]{result.fetched}[/]")
     summary.add_row("retenues", f"[bold green]{result.kept}[/]")
     summary.add_row("nouvelles", f"[bold]{result.new_offers}[/]")

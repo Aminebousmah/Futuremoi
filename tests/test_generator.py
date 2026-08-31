@@ -123,28 +123,69 @@ class TestAdaptationCV:
 
         a = adapter_cv(self._offre_bi(), profile)
         mobiles = [r.label for r in a.rubriques if not r.epinglee]
-        assert mobiles[0] == "Data Visualisation & BI"
+        assert mobiles[0] == "Visualisation & BI"
 
-    def test_un_besoin_implicite_apparait(self, cfg, profile):
-        # Une mission BI suppose un modele semantique, meme si l'annonce ne le
-        # nomme pas : c'est ce qui permet de repondre au-dela de ses mots.
+    def test_les_competences_demandees_arrivent_en_tete(self, cfg, profile):
         from freelance_radar.apply.cv import adapter_cv
 
-        labels = [r.label for r in adapter_cv(self._offre_bi(), profile).rubriques]
-        assert "Modélisation & sémantique" in labels
+        a = adapter_cv(self._offre_bi(), profile)
+        premiere = next(r for r in a.rubriques if not r.epinglee)
+        assert premiere.outils[0] == "Power BI"
+
+    def test_on_deborde_un_peu_du_strict_demande(self, cfg, profile):
+        # L'annonce ne cite que Power BI : le CV doit quand meme montrer
+        # l'etendue du profil, sans s'eloigner du poste.
+        from freelance_radar.apply.cv import COMPETENCES_RETENUES, adapter_cv
+
+        a = adapter_cv(self._offre_bi(), profile)
+        total = sum(len(r.outils) for r in a.rubriques if not r.epinglee)
+        assert total > 4
+        assert total <= COMPETENCES_RETENUES + 4
+
+    def test_aucune_rubrique_squelettique(self, cfg, profile):
+        from freelance_radar.apply.cv import MINIMUM_PAR_RUBRIQUE, adapter_cv
+
+        for offre in (self._offre_bi(), self._offre_ml()):
+            for r in adapter_cv(offre, profile).rubriques:
+                assert len(r.outils) >= MINIMUM_PAR_RUBRIQUE, r.label
+
+    def test_aucune_competence_hors_de_sa_categorie(self, cfg, profile):
+        # Replier une categorie dans une autre rangerait ses competences sous
+        # un intitule qui ment.
+        from freelance_radar.apply.cv import adapter_cv
+
+        inventaire = profile.cv["competences"]
+        for r in adapter_cv(self._offre_bi(), profile).rubriques:
+            if r.label in inventaire:
+                for outil in r.outils:
+                    assert outil in inventaire[r.label], f"{outil} sous {r.label}"
+
+    def test_les_savoir_etre_suivent_l_offre(self, cfg, profile):
+        from freelance_radar.apply.cv import adapter_cv
+
+        pedago = make_offer(title="Data Analyst",
+                            description="Formation et accompagnement des equipes metier.")
+        neutre = make_offer(title="Data Analyst", description="Analyse de donnees.")
+        a = next(r for r in adapter_cv(pedago, profile).rubriques
+                 if r.label == "Compétences transverses")
+        b = next(r for r in adapter_cv(neutre, profile).rubriques
+                 if r.label == "Compétences transverses")
+        assert a.outils != b.outils
+        assert "Pédagogie et formation" in a.outils
 
     def test_les_rubriques_fixes_restent_en_tete(self, cfg, profile):
         from freelance_radar.apply.cv import adapter_cv
 
         a = adapter_cv(self._offre_bi(), profile)
-        assert [r.label for r in a.rubriques[:2]] == ["Competences transverses", "Langues"]
+        assert [r.label for r in a.rubriques[:2]] == ["Compétences transverses", "Langues"]
         assert all(r.epinglee for r in a.rubriques[:2])
 
     def test_aucun_outil_invente(self, cfg, profile):
         # Le generateur ne peut puiser que dans l'inventaire declare.
         from freelance_radar.apply.cv import adapter_cv
 
-        inventaire = {o for liste in profile.cv["outils"].values() for o in liste}
+        inventaire = {o for liste in profile.cv["competences"].values() for o in liste}
+        inventaire |= set(profile.cv["transverses"])
         inventaire |= {o for r in profile.cv["rubriques_fixes"] for o in r["outils"]}
         for r in adapter_cv(self._offre_ml(), profile).rubriques:
             for outil in r.outils:

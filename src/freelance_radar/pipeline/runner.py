@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from ..config import Config, Profile
 from ..models import JobOffer
@@ -32,6 +33,7 @@ class CampaignResult:
     per_source: dict[str, int] = field(default_factory=dict)
     filter_report: FilterReport | None = None
     offers: list[JobOffer] = field(default_factory=list)
+    publiees_depuis: datetime | None = None
 
     @property
     def rejected_summary(self) -> str:
@@ -45,6 +47,7 @@ def run_campaign(
     *,
     sources: list[str] | None = None,
     dry_run: bool = False,
+    tout: bool = False,
     progress=None,
 ) -> CampaignResult:
     """Execute une campagne complete.
@@ -78,7 +81,15 @@ def run_campaign(
     normalized = [enrich_offer(normalize_offer(o)) for o in raw_offers]
 
     notify("filtrage", "")
-    report = apply_filters(normalized, cfg)
+    depuis = None
+    if cfg.filters.only_since_last_run and not tout:
+        dernier = db.last_run_at()
+        if dernier:
+            # Marge : les sources indexent avec du retard, une annonce parue la
+            # veille du dernier passage peut n'apparaitre qu'aujourd'hui.
+            depuis = dernier - timedelta(days=cfg.filters.refresh_margin_days)
+    result.publiees_depuis = depuis
+    report = apply_filters(normalized, cfg, publiees_depuis=depuis)
     result.filter_report = report
     result.kept = len(report.kept)
 

@@ -7,6 +7,7 @@
 <p class="sub">
   {{ offres|length }} offre(s) affichée(s) · profil : {{ profil.name or "non renseigné" }}
   · seuil de candidature : {{ "%.0f"|format(seuil) }}/100
+  {% if dernier_passage %}· dernière actualisation le {{ dernier_passage.strftime("%d/%m/%Y à %H:%M") }}{% endif %}
 </p>
 
 {% if campagne.error %}
@@ -16,6 +17,7 @@
   Dernière campagne : {{ campagne.result.collectees }} collectées,
   <strong>{{ campagne.result.retenues }}</strong> retenues,
   {{ campagne.result.nouvelles }} nouvelles.
+  {% if campagne.result.depuis %}<br><span class="bas">Nouveautés depuis le {{ campagne.result.depuis }}.</span>{% endif %}
   {% if campagne.result.rejets %}<br><span class="bas">Rejets : {{ campagne.result.rejets }}</span>{% endif %}
 </div>
 {% endif %}

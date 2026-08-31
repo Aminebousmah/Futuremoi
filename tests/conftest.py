@@ -46,19 +46,18 @@ def profile() -> Profile:
                         "stack": ["dbt", "Snowflake"], "achievement": "Refonte du DWH."}],
         "documents": {"cv_pdf": "assets/CV.pdf"},
         "cv": {
-            "outils": {
-                "modelisation": ["Power BI", "DAX", "SQL"],
-                "dataviz": ["Power BI", "Tableau", "Excel"],
-                "preparation": ["Power Query", "SQL", "dbt"],
-                "pipelines": ["Airflow", "dbt", "Snowflake"],
-                "ml": ["Scikit-learn", "MLflow"],
-                "programmation": ["Python", "SQL", "R"],
-                "pilotage": ["Analyse metier", "Cadrage du besoin"],
-                "qualite": ["Controles qualite", "dbt"],
-                "cloud": ["AWS", "Docker"],
+            "competences": {
+                "Visualisation & BI": ["Power BI", "Tableau", "Excel", "Qlik"],
+                "Langages & requetage": ["Python", "SQL", "R", "DAX"],
+                "Ingenierie & orchestration": ["dbt", "Airflow", "Spark", "Kafka"],
+                "Data science & ML": ["Scikit-learn", "MLflow", "XGBoost", "MLOps"],
+                "Entrepots & bases": ["Snowflake", "BigQuery", "PostgreSQL"],
+                "Analyse & pilotage": ["Analyse metier", "KPI", "Cadrage du besoin"],
             },
+            # Libelles accentues : ce sont eux que la table d'alias reconnait.
+            "transverses": ["Communication", "Autonomie", "Rigueur",
+                            "Travail en équipe", "Pédagogie et formation"],
             "rubriques_fixes": [
-                {"label": "Competences transverses", "outils": ["Agile", "Communication"]},
                 {"label": "Langues", "outils": ["Francais", "Anglais"]},
             ],
         },

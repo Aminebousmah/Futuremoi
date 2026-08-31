@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from ..config import Config
 from ..models import ContractType, JobOffer, RemotePolicy
@@ -79,7 +80,15 @@ def is_excluded(offer: JobOffer, cfg: Config) -> str | None:
     return contains_any(offer.description[:1500], ["stage", "alternance", "apprentissage"])
 
 
-def apply_filters(offers: list[JobOffer], cfg: Config) -> FilterReport:
+def apply_filters(offers: list[JobOffer], cfg: Config,
+                  publiees_depuis: datetime | None = None) -> FilterReport:
+    """Filtre une moisson.
+
+    `publiees_depuis` limite l'examen aux annonces parues depuis cette date :
+    c'est le mode incremental, qui evite de repasser sur tout le catalogue a
+    chaque campagne. Une annonce sans date de publication est conservee — la
+    deduplication se charge des doublons.
+    """
     report = FilterReport()
     wanted = _wanted_contracts(cfg)
     seen_ids: set[str] = set()
@@ -104,6 +113,15 @@ def apply_filters(offers: list[JobOffer], cfg: Config) -> FilterReport:
         if wanted and offer.contract != ContractType.UNKNOWN and offer.contract not in wanted:
             report.rejected[f"contrat {offer.contract.value}"] += 1
             continue
+
+        # --- parue depuis le dernier passage ---
+        if publiees_depuis and offer.published_at:
+            parution = offer.published_at
+            if parution.tzinfo is None:
+                parution = parution.replace(tzinfo=timezone.utc)
+            if parution < publiees_depuis:
+                report.rejected["deja vue au passage precedent"] += 1
+                continue
 
         # --- anciennete ---
         age = offer.age_days

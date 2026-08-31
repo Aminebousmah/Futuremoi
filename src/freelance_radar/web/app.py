@@ -89,6 +89,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
                             "source": source, "limite": limite,
                             "selection": selection, "ecartees": ecartees},
                 "statuts": [s.value for s in ApplicationStatus],
+                "dernier_passage": base.last_run_at(),
             }
         finally:
             base.close()

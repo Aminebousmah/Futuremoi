@@ -210,7 +210,7 @@ freelance-radar/
 ├── docs/cv-canva.md           # adapter le CV Canva : mode d'emploi et limites
 ├── output/applications/       # les brouillons générés
 ├── data/radar.db              # base SQLite
-└── tests/                     # 192 tests, sans accès réseau
+└── tests/                     # 196 tests, sans accès réseau
 ```
 
 ### Le flux, en une ligne
@@ -492,7 +492,7 @@ Le script ne génère **pas** les candidatures : la sélection reste un geste ma
 ## Développement
 
 ```bash
-pytest              # 192 tests, aucun accès réseau
+pytest              # 196 tests, aucun accès réseau
 ruff check src tests
 ```
 
