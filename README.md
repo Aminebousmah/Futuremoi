@@ -266,6 +266,7 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 | **Adzuna** | API officielle | oui | Agrégateur multi-boards France — **le plus gros contributeur** |
 | **Free-Work** | HTML + JSON-LD | non | Missions freelance IT en France |
 | **Freelance-Informatique** | HTML + JSON-LD | non | Missions freelance IT France, toutes régions |
+| **Mindquest** | Sitemap + JSON-LD | non | Missions freelance IT/finance, très Île-de-France |
 | **France Travail** | API officielle | oui | Toute la France, y compris hors métropoles |
 | **Jobicy** | API publique | non | Remote Europe/monde, filtrable par industrie |
 | **Himalayas** | API publique | non | Remote worldwide |
@@ -274,7 +275,7 @@ C'est nettement plus stable que des sélecteurs CSS, qui cassent à chaque refon
 | **Remotive** | API publique | non | Remote worldwide |
 | **Remote OK** | API publique | non | Remote worldwide |
 
-Neuf sources actives sans aucune configuration, hormis France Travail qui demande
+Dix sources actives sans aucune configuration, hormis France Travail qui demande
 des clés gratuites (voir plus bas).
 
 Adzuna nécessite des clés gratuites ([inscription](https://developer.adzuna.com)) :
@@ -335,6 +336,27 @@ Contraintes de l'API respectées par le client : 4 requêtes/seconde maximum,
 `range` plafonné à 150 résultats, et `publieeDepuis` restreint aux valeurs
 1, 3, 7, 14 et 31 — votre `max_age_days` est automatiquement arrondi à la valeur
 autorisée supérieure.
+
+### Mindquest
+
+Pas de recherche exploitable sans JavaScript, mais un sitemap dédié aux missions
+(`sitemap-missions.xml`) et un `JobPosting` JSON-LD sur chaque fiche. Le scraper
+lit le sitemap, **filtre les URL sur leur slug** — qui porte l'intitulé du poste —
+puis ne charge que les fiches retenues : sur 128 missions, une douzaine sont Data,
+donc ce tri évite 90 % des téléchargements.
+
+| Clé | Défaut | Rôle |
+|---|---|---|
+| `max_missions` | `40` | Plafond de fiches chargées, après filtrage sur le slug |
+
+Deux particularités de la source, toutes deux gérées :
+
+- `datePosted` est la date de **création** de la mission, pas de rafraîchissement :
+  des annonces toujours actives affichent 2024, et `max_age_days` les rejetait
+  toutes. Le `<lastmod>` du sitemap sert donc de date de publication.
+- `baseSalary` est inexploitable (une fiche annonce 50 000 €/jour, en réalité un
+  salaire annuel mal étiqueté) et `employmentType` vaut `FULL_TIME` sur une place
+  de marché freelance. Le TJM se lit dans la description, le contrat est forcé.
 
 ### Ce que l'outil ne scrape pas
 

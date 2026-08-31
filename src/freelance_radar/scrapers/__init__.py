@@ -7,6 +7,7 @@ from . import (
     freelanceinfo,
     freework,
     lesjeudis,
+    mindquest,
     remote_boards,
     remoteok,
     remotive,

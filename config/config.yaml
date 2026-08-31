@@ -167,6 +167,13 @@ sources:
     max_pages: 2
     max_offers: 40
 
+  mindquest:
+    enabled: true
+    kind: html
+    # Le sitemap est chronologique : on lit par la fin pour avoir les missions
+    # fraiches. 60 fiches = ~1,5 min a 1,5 s de delai entre requetes.
+    max_missions: 60
+
   # --- Job boards remote (API JSON publiques, sans cle) ---
   jobicy:
     enabled: true
