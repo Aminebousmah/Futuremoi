@@ -1,0 +1,40 @@
+{% extends "base.html.j2" %}
+{% set page_actif = "offres" %}
+{% block titre %}Confirmer l'appel à Claude — {{ offre.title }}{% endblock %}
+
+{% block contenu %}
+<p class="bas"><a href="/offre/{{ offre.id }}">← Retour à l'offre</a></p>
+
+<h1>Confirmer l'appel à l'API Anthropic</h1>
+
+<div class="panneau">
+  <p class="sub" style="margin:0 0 .8rem">
+    Cette action utilise votre clé <code>ANTHROPIC_API_KEY</code> et sera facturée
+    sur votre compte. Aucun appel n'a encore été émis.
+  </p>
+
+  <table style="width:100%">
+    <tr><td class="sub">Offre</td><td><strong>{{ offre.title }}</strong></td></tr>
+    <tr><td class="sub">Modèle</td><td><code>{{ modele }}</code></td></tr>
+    <tr><td class="sub">Appels</td><td>1 requête</td></tr>
+    <tr><td class="sub">Génère</td><td>lettre de motivation + email + points saillants</td></tr>
+  </table>
+
+  {% if blocage %}
+    <p style="margin:1rem 0 0"><strong>Indisponible :</strong> {{ blocage }}</p>
+    <p class="bas" style="font-size:.85rem">
+      Le brouillon hors ligne reste disponible depuis la page de l'offre.
+    </p>
+  {% else %}
+    <form method="post" action="/offre/{{ offre.id }}/candidature"
+          style="margin:1.2rem 0 0">
+      <input type="hidden" name="moteur" value="llm">
+      {# Le POST n'accepte l'appel que si ce champ vaut "oui" : la confirmation
+         est portee par la requete, pas par un etat serveur. #}
+      <input type="hidden" name="confirmation" value="oui">
+      <button type="submit" class="primaire">Oui, lancer l'appel facturé</button>
+      <a class="bouton" href="/offre/{{ offre.id }}" style="margin-left:.5rem">Annuler</a>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
