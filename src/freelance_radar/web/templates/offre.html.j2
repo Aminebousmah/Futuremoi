@@ -116,14 +116,11 @@
     {# Recomposer le seul CV : utile apres avoir touche a profile.yaml, sans
        refaire la lettre et l'email qui n'ont pas bouge. #}
     <form method="post" action="/offre/{{ offre.id }}/cv" class="enligne">
-      <input type="text" name="avec" placeholder="Imposer : DAX, Power Query…"
+      <input type="text" name="avec" value="{{ imposees }}"
+             placeholder="Imposer : DAX, Power Query…"
              style="flex:1;min-width:14rem">
-      <button type="submit">Régénérer le CV</button>
+      <button type="submit">Régénérer le CV seul</button>
     </form>
-    <p class="bas" style="font-size:.8rem;margin:.4rem 0 0">
-      Hors ligne. Les compétences imposées passent devant, même si l'annonce
-      ne les nomme pas — séparez-les par des virgules.
-    </p>
     <p class="bas" style="font-size:.8rem">Dossier : <code>{{ candidature.file_path }}</code></p>
   {% else %}
     <p class="sub" style="margin:.5rem 0">Aucun brouillon pour cette offre.</p>
@@ -136,15 +133,28 @@
   </p>
 
   {# Deux chemins distincts, jamais un menu deroulant : le choix par defaut ne
-     doit pas pouvoir declencher un appel facture par inadvertance. #}
-  <form class="enligne" method="post" action="/offre/{{ offre.id }}/candidature">
+     doit pas pouvoir declencher un appel facture par inadvertance.
+     Le champ d'imposition est ICI et pas seulement sur la regeneration :
+     autrement il fallait un premier brouillon pour pouvoir choisir, ce qui
+     obligeait a generer deux fois. #}
+  <form method="post" action="/offre/{{ offre.id }}/candidature">
     <input type="hidden" name="moteur" value="template">
-    <button type="submit" class="primaire">
-      {{ "Regénérer le brouillon" if candidature else "Générer un brouillon" }}
-    </button>
+    <label for="avec-{{ offre.id }}" class="sub" style="display:block;margin-bottom:.3rem">
+      Compétences à faire figurer coûte que coûte
+    </label>
+    <div class="enligne">
+      <input type="text" id="avec-{{ offre.id }}" name="avec" value="{{ imposees }}"
+             placeholder="DAX, Power Query, Microsoft Fabric…"
+             style="flex:1;min-width:16rem">
+      <button type="submit" class="primaire">
+        {{ "Regénérer le brouillon" if candidature else "Générer un brouillon" }}
+      </button>
+    </div>
   </form>
   <p class="bas" style="font-size:.8rem;margin:.6rem 0 0">
-    Génère des fichiers à relire, hors ligne. Rien n'est envoyé, rien n'est facturé.
+    Séparez par des virgules. Elles passent devant, même si l'annonce ne les
+    nomme pas ; le reste du CV se compose sur l'offre, comme d'habitude.
+    Hors ligne — rien n'est envoyé, rien n'est facturé.
   </p>
 
   <p style="margin:.9rem 0 0">
