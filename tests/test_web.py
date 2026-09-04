@@ -450,3 +450,40 @@ class TestRegenerationCV:
         self._avec_candidature(client, offre_en_base)
         r = client.get(f"/document/{offre_en_base.id}/../../../.env")
         assert r.status_code == 404
+
+
+class TestImpositionDesLaPremiereGeneration:
+    """Le champ doit exister avant tout brouillon.
+
+    Il n'apparaissait qu'une fois la candidature creee : il fallait donc
+    generer une premiere fois pour pouvoir choisir, puis regenerer.
+    """
+
+    def test_le_champ_est_la_sans_brouillon(self, client, offre_en_base):
+        page = client.get(f"/offre/{offre_en_base.id}").text
+        assert 'name="avec"' in page
+        assert "coûte que coûte" in page
+
+    def test_la_generation_prend_les_imposees(self, client, cfg, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={"moteur": "template", "avec": "DAX, Power Query"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        notes = list(cfg.applications_path.glob("*/cv-adapte.md"))
+        assert notes, "aucune note d'adaptation ecrite"
+        assert "DAX" in notes[0].read_text(encoding="utf-8")
+
+    def test_le_champ_garde_sa_valeur(self, client, offre_en_base):
+        """Sans cela, il faut retaper la liste a chaque essai."""
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={"moteur": "template", "avec": "DAX"},
+                        follow_redirects=False)
+        assert "avec=DAX" in r.headers["location"]
+        page = client.get(f"/offre/{offre_en_base.id}?avec=DAX").text
+        assert 'value="DAX"' in page
+
+    def test_champ_vide_ne_pollue_pas_l_url(self, client, offre_en_base):
+        r = client.post(f"/offre/{offre_en_base.id}/candidature",
+                        data={"moteur": "template", "avec": "  "},
+                        follow_redirects=False)
+        assert "avec=" not in r.headers["location"]

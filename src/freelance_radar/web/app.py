@@ -6,6 +6,7 @@ import logging
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import (
@@ -104,7 +105,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         return page(request, "index.html.j2", **ctx)
 
     @app.get("/offre/{offer_id}", response_class=HTMLResponse)
-    def detail(request: Request, offer_id: str) -> HTMLResponse:
+    def detail(request: Request, offer_id: str, avec: str = "") -> HTMLResponse:
         base = db()
         try:
             offre = base.get_offer(offer_id)
@@ -114,7 +115,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         finally:
             base.close()
         return page(request, "offre.html.j2", offre=offre, candidature=candidature,
-                    poids=cfg.scoring.weights,
+                    poids=cfg.scoring.weights, imposees=avec,
                     statuts=[s.value for s in ApplicationStatus])
 
     @app.get("/offre/{offer_id}/fiche", response_class=HTMLResponse)
@@ -189,7 +190,8 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
 
     @app.post("/offre/{offer_id}/candidature")
     def generer_candidature(offer_id: str, moteur: str = Form("template"),
-                            confirmation: str = Form("")) -> RedirectResponse:
+                            confirmation: str = Form(""),
+                            avec: str = Form("")) -> RedirectResponse:
         """Genere un BROUILLON. Aucun envoi : c'est la regle du projet.
 
         Le moteur LLM exige `moteur=llm` ET `confirmation=oui` : le premier
@@ -198,6 +200,7 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
         """
         consent = (moteur == "llm" and confirmation == "oui"
                    and cfg.application.use_llm)
+        imposees = [c.strip() for c in avec.split(",") if c.strip()]
         base = db()
         try:
             offre = base.get_offer(offer_id)
@@ -205,11 +208,13 @@ def create_app(cfg: Config | None = None, profile: Profile | None = None) -> Fas
                 raise HTTPException(status_code=404, detail="Offre introuvable")
             generateur = ApplicationGenerator(cfg, profile)
             candidature = generateur.generate(
-                offre, force_template=not consent, consent_llm=consent)
+                offre, force_template=not consent, consent_llm=consent,
+                imposees=imposees)
             base.save_application(candidature)
         finally:
             base.close()
-        return RedirectResponse(f"/offre/{offer_id}", status_code=303)
+        suffixe = f"?avec={quote_plus(avec)}" if avec.strip() else ""
+        return RedirectResponse(f"/offre/{offer_id}{suffixe}", status_code=303)
 
     @app.post("/offre/{offer_id}/note")
     def enregistrer_note(offer_id: str, note: str = Form(""),
